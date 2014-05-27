@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reynolds.Expressions", "Reynolds.Expressions\Reynolds.Expressions.csproj", "{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reynolds.Mappings", "reynolds.mappings\Reynolds.Mappings\Reynolds.Mappings.csproj", "{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

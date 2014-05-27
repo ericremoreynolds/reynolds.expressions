@@ -1,0 +1,3 @@
+[submodule "reynolds.mappings"]
+	path = reynolds.mappings
+	url = https://github.com/ericremoreynolds/reynolds.mappings.git
