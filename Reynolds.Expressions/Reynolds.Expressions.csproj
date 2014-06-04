@@ -40,8 +40,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Expressions\AccessExpression.cs" />
+    <Compile Include="Expressions\ApplyExpression.cs" />
+    <Compile Include="Expressions\CoefficientExpression.cs" />
+    <Compile Include="Expressions\ConstantExpression.cs" />
     <Compile Include="Expression.cs" />
+    <Compile Include="Functions\DelegateFunction.cs" />
+    <Compile Include="Functions\ExpressionFunction.cs" />
+    <Compile Include="ExpressionSubstitution.cs" />
+    <Compile Include="Expressions\FieldExpression.cs" />
+    <Compile Include="Function.cs" />
+    <Compile Include="Expressions\ProductExpression.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Expressions\SumExpression.cs" />
+    <Compile Include="Symbol.cs" />
+    <Compile Include="VisitCache.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\reynolds.mappings\Reynolds.Mappings\Reynolds.Mappings.csproj">
