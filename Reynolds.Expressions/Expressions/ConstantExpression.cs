@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Reynolds.Mappings;
+using System.Reflection;
 
 namespace Reynolds.Expressions.Expressions
 {
-	internal class ConstantExpression : Expression
+	internal class ConstantDoubleExpression : Expression
 	{
-		static WeakLazyMapping<double, ConstantExpression> constants = new WeakLazyMapping<double, ConstantExpression>(value => new ConstantExpression(value));
+		static WeakLazyMapping<double, ConstantDoubleExpression> constants = new WeakLazyMapping<double, ConstantDoubleExpression>(value => new ConstantDoubleExpression(value));
 
 		public static Expression Get(double value)
 		{
@@ -17,7 +18,7 @@ namespace Reynolds.Expressions.Expressions
 
 		double value;
 
-		public ConstantExpression(double value)
+		public ConstantDoubleExpression(double value)
 		{
 			this.value = value;
 		}
@@ -29,10 +30,10 @@ namespace Reynolds.Expressions.Expressions
 
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
-			return Expression.Zero;
+			return 0;
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
 		{
 			return this;
 		}
@@ -49,7 +50,7 @@ namespace Reynolds.Expressions.Expressions
 		{
 			get
 			{
-				return value == 0.0;
+				return value == 0;
 			}
 		}
 
@@ -57,11 +58,11 @@ namespace Reynolds.Expressions.Expressions
 		{
 			get
 			{
-				return value == 1.0;
+				return value == 1;
 			}
 		}
 
-		public override double Value
+		public override object Value
 		{
 			get
 			{
@@ -80,22 +81,20 @@ namespace Reynolds.Expressions.Expressions
 		}
 	}
 
-	internal class ObjectConstantExpression : Expression
+	internal class ConstantIntExpression : Expression
 	{
-		public readonly object Object;
+		static WeakLazyMapping<int, ConstantIntExpression> constants = new WeakLazyMapping<int, ConstantIntExpression>(value => new ConstantIntExpression(value));
 
-		static Dictionary<object, ObjectConstantExpression> cache = new Dictionary<object, ObjectConstantExpression>();
-		public static Expression Get(object obj)
+		public static Expression Get(int value)
 		{
-			ObjectConstantExpression e;
-			if(!cache.TryGetValue(obj, out e))
-				cache[obj] = e = new ObjectConstantExpression(obj);
-			return e;
+			return constants[value];
 		}
 
-		ObjectConstantExpression(object obj)
+		int value;
+
+		public ConstantIntExpression(int value)
 		{
-			this.Object = obj;
+			this.value = value;
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -105,10 +104,86 @@ namespace Reynolds.Expressions.Expressions
 
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
-			return Expression.Zero;
+			return 0;
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
+		{
+			return this;
+		}
+
+		public override bool IsConstant
+		{
+			get
+			{
+				return true;
+			}
+		}
+
+		public override bool IsZero
+		{
+			get
+			{
+				return value == 0;
+			}
+		}
+
+		public override bool IsOne
+		{
+			get
+			{
+				return value == 1;
+			}
+		}
+
+		public override dynamic Value
+		{
+			get
+			{
+				return value;
+			}
+		}
+
+		public override string ToString()
+		{
+			return value.ToString();
+		}
+
+		public override string ToCode()
+		{
+			return value.ToString();
+		}
+	}
+
+	internal class ConstantObjectExpression : Expression
+	{
+		protected object obj;
+
+		static Dictionary<object, ConstantObjectExpression> cache = new Dictionary<object, ConstantObjectExpression>();
+		public static Expression Get(object obj)
+		{
+			ConstantObjectExpression e;
+			if(!cache.TryGetValue(obj, out e))
+				cache[obj] = e = new ConstantObjectExpression(obj);
+			return e;
+		}
+
+		ConstantObjectExpression(object obj)
+		{
+			this.obj = obj;
+		}
+
+		protected override Expression Substitute(VisitCache cache)
+		{
+			return this;
+		}
+
+		protected override Expression Derive(VisitCache cache, Expression s)
+		{
+			return 0;
+		}
+
+		protected override Expression Normalize(VisitCache cache)
 		{
 			return this;
 		}
@@ -123,12 +198,54 @@ namespace Reynolds.Expressions.Expressions
 
 		public override string ToString()
 		{
-			return Object.ToString();
+			return obj.ToString();
 		}
 
 		public override string ToCode()
 		{
-			return Object.ToString() + "d";
+			return obj.ToString();
+		}
+
+		public override dynamic Value
+		{
+			get
+			{
+				return obj;
+			}
+		}
+
+		public override Expression Normalize(Expression[] arguments)
+		{
+			if(arguments.All(a => a.IsConstant))
+			{
+				FieldExpression fie;
+				if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
+					//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
+					return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null));
+				else
+				{
+					Type type = obj.GetType();
+					if(type.IsArray)
+					{
+						var arr = obj as Array;
+						return Expression.Constant(arr.GetValue(arguments.Select(x => Convert.ToInt32((object) x.Value)).ToArray()));
+					}
+					else
+					{
+						return Expression.Constant(type.InvokeMember(
+							"",
+							BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
+							null,
+							obj,
+							arguments.Select(x => (object) x.Value).ToArray()
+							));
+					}
+				}
+			}
+			else
+			{
+				return this[arguments];
+			}
 		}
 	}
 }

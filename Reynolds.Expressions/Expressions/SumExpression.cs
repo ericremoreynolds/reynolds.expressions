@@ -14,7 +14,7 @@ namespace Reynolds.Expressions.Expressions
 		static internal Expression Get(params Expression[] terms)
 		{
 			if(terms.Length == 0)
-				return 0.0;
+				return 0;
 
 			if(terms.Length == 1)
 				return terms[0];
@@ -57,10 +57,10 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
 		{
-			Dictionary<Expression, double> newTerms = new Dictionary<Expression, double>();
-			double constant = 0.0;
+			Dictionary<Expression, dynamic> newTerms = new Dictionary<Expression, dynamic>();
+			dynamic constant = 0;
 
 			Action<Expression> addTerm = delegate(Expression e)
 			{
@@ -71,22 +71,22 @@ namespace Reynolds.Expressions.Expressions
 					CoefficientExpression ce = e as CoefficientExpression;
 					if(null != ce)
 					{
-						double val;
+						dynamic val;
 						if(!newTerms.TryGetValue(ce.Expression, out val))
-							val = 0.0;
+							val = 0;
 						val += ce.Coefficient;
-						if(val == 0.0)
+						if(val == 0)
 							newTerms.Remove(ce.Expression);
 						else
 							newTerms[ce.Expression] = val;
 					}
 					else
 					{
-						double val;
+						dynamic val;
 						if(!newTerms.TryGetValue(e, out val))
-							val = 0.0;
-						val += 1.0;
-						if(val == 0.0)
+							val = 0;
+						val += 1;
+						if(val == 0)
 							newTerms.Remove(e);
 						else
 							newTerms[e] = val;
@@ -108,10 +108,10 @@ namespace Reynolds.Expressions.Expressions
 			}
 
 			List<Expression> ts = new List<Expression>();
-			if(constant != 0.0)
+			if(constant != 0)
 				ts.Add(constant);
 			foreach(var kv in newTerms)
-				if(kv.Value != 1.0)
+				if(kv.Value != 1)
 					ts.Add(CoefficientExpression.Get(kv.Value, kv.Key));
 				else
 					ts.Add(kv.Key);
@@ -126,7 +126,7 @@ namespace Reynolds.Expressions.Expressions
 			for(int k = 0; k < Terms.Length; k++)
 			{
 				CoefficientExpression ce = Terms[k] as CoefficientExpression;
-				if( /*!(ce != null && ce.Coefficient < 0.0)&& */ !(Terms[k].IsConstant && Terms[k].Value < 0.0))
+				if( /*!(ce != null && ce.Coefficient < 0.0)&& */ !(Terms[k].IsConstant && Terms[k].Value < 0))
 					if(!first)
 						sb.Append("+");
 				sb.Append(Terms[k].ToString());
@@ -144,7 +144,7 @@ namespace Reynolds.Expressions.Expressions
 			for(int k = 0; k < Terms.Length; k++)
 			{
 				CoefficientExpression ce = Terms[k] as CoefficientExpression;
-				if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0.0))
+				if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0))
 					if(!first)
 						sb.Append("+");
 				sb.Append(Terms[k].ToCode());

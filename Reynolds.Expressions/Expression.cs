@@ -50,15 +50,15 @@ namespace Reynolds.Expressions
 			return cache[this];
 		}
 
-		public Expression Simplify()
+		public Expression Normalize()
 		{
-			VisitCache cache = new VisitCache((f, c) => f.Simplify(c));
+			VisitCache cache = new VisitCache((f, c) => f.Normalize(c));
 			return cache[this];
 		}
 
 		protected abstract Expression Substitute(VisitCache cache);
 		protected abstract Expression Derive(VisitCache cache, Expression s);
-		protected abstract Expression Simplify(VisitCache cache);
+		protected abstract Expression Normalize(VisitCache cache);
 
 		public virtual bool IsConstant
 		{
@@ -84,7 +84,7 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public virtual double Value
+		public virtual dynamic Value
 		{
 			get
 			{
@@ -92,13 +92,16 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public static readonly Expression Zero = 0.0;
-		public static readonly Expression One = 1.0;
-
 		public static implicit operator Expression(double a)
 		{
-			return ConstantExpression.Get(a);
+			return ConstantDoubleExpression.Get(a);
 		}
+
+		public static implicit operator Expression(int a)
+		{
+			return ConstantIntExpression.Get(a);
+		}
+
 
 		public static Expression operator +(Expression f, Expression g)
 		{
@@ -107,7 +110,7 @@ namespace Reynolds.Expressions
 
 		public static Expression operator -(Expression f, Expression g)
 		{
-			return SumExpression.Get(f, CoefficientExpression.Get(-1.0, g));
+			return SumExpression.Get(f, CoefficientExpression.Get(-1, g));
 		}
 
 		public static Expression operator *(Expression f, Expression g)
@@ -122,43 +125,54 @@ namespace Reynolds.Expressions
 
 		public static Expression operator -(Expression f)
 		{
-			return CoefficientExpression.Get(-1.0, f);
+			return CoefficientExpression.Get(-1, f);
 		}
 
-		public Expression this[params Expression[] indices]
+		public bool NormalizesTo(object obj)
+		{
+			var n = this.Normalize();
+			var other = obj as Expression;
+			if(other != null)
+				return other.Normalize() == n;
+			if(n.IsConstant)
+				return n.Value == (dynamic) obj;
+			return false;
+		}
+
+		public virtual Expression this[params Expression[] arguments]
 		{
 			get
 			{
-				return AccessExpression.Get(this, indices);
+				return ApplicationExpression.Get(this, arguments);
 			}
 		}
 
-		public static readonly Function Log = new DelegateFunction(
+		public static readonly FunctionExpression Log = new DelegateFunction(
 			"log", "Math.Log",
 			x => Math.Log(x[0]),
-			x => 1.0 / x[0]
+			x => 1 / x[0]
 			);
 
-		public static readonly Function Exp = new DelegateFunction(
+		public static readonly FunctionExpression Exp = new DelegateFunction(
 			"exp", "Math.Exp",
 			x => Math.Exp(x[0]),
 			x => Exp[x[0]]
 			);
 
-		public static readonly Function Pow = new DelegateFunction(
+		public static readonly FunctionExpression Pow = new DelegateFunction(
 			"pow", "Math.Pow",
 			x => Math.Pow(x[0], x[1]),
 			x => x[1] * Pow[x[0], x[1] - 1],
 			x => Log[x[0]] * Pow[x[0], x[1]]
 			);
 
-		public static readonly Function Sin = new DelegateFunction(
+		public static readonly FunctionExpression Sin = new DelegateFunction(
 			"sin", "Math.Sin",
 			x => Math.Sin(x[0]),
 			null // set after
 			);
 
-		public static readonly Function Cos = new DelegateFunction(
+		public static readonly FunctionExpression Cos = new DelegateFunction(
 			"cos", "Math.Cos",
 			x => Math.Cos(x[0]),
 			null // set after
@@ -166,25 +180,28 @@ namespace Reynolds.Expressions
 		
 		static Expression()
 		{
-			((DelegateFunction) Sin).SetPartial(0, x => -Cos[x[0]]);
-			((DelegateFunction) Cos).SetPartial(0, x => Sin[x[0]]);
+			((DelegateFunction) Sin).SetPartial(0, x => Cos[x[0]]);
+			((DelegateFunction) Cos).SetPartial(0, x => -Sin[x[0]]);
 			((DelegateFunction) Pow).Stringify = (x) => (x[0].ToString() + "^" + x[1].ToString());
 
 			((DelegateFunction) Pow).Simplify = delegate(Expression[] x)
 			{
+				var ae = x[0] as ApplicationExpression;
 				var pe = x[0] as ProductExpression;
 				CoefficientExpression ce;
 				if(pe != null)
 					return ProductExpression.Get((from f in pe.Factors select Expression.Pow[f, x[1]]).ToArray());
 				else if(null != (ce = x[0] as CoefficientExpression))
 					return ProductExpression.Get(Expression.Pow[ce.Coefficient, x[1]], Expression.Pow[ce.Expression, x[1]]);
+				else if(ae != null && ae.Applicand == Expression.Pow)
+					return Expression.Pow[ae.Arguments[0], ae.Arguments[1] * x[1]];
 				else
 					return null;
 			};
 
 			((DelegateFunction) Pow).Codify = delegate(Expression[] x)
 			{
-				if(x[1].IsConstant && x[1].Value == -1.0)
+				if(x[1].IsConstant && x[1].Value == -1)
 					return "(1d/" + x[0].ToString() + ")";
 				else
 					return null;
@@ -302,6 +319,16 @@ namespace Reynolds.Expressions
 
 		public abstract string ToCode();
 
+		public virtual string ToCode(Expression[] arguments)
+		{
+			throw new NotImplementedException();
+		}
+
+		public virtual string ToString(Expression[] arguments)
+		{
+			throw new NotImplementedException();
+		}
+
 		public int CompareTo(Expression other)
 		{
 			return this.ordinal.CompareTo(other.ordinal);
@@ -311,13 +338,25 @@ namespace Reynolds.Expressions
 		{
 			if(obj is double)
 				return (double) obj;
+			else if(obj is int)
+				return (int) obj;
 			else
-				return ObjectConstantExpression.Get(obj);
+				return ConstantObjectExpression.Get(obj);
 		}
 
 		public static Expression Field(string name)
 		{
 			return FieldExpression.Get(name);
+		}
+
+		public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
+		{
+			throw new NotImplementedException();
+		}
+
+		public virtual Expression Normalize(Expression[] arguments)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

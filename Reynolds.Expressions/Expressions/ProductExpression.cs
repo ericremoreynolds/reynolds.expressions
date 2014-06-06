@@ -14,7 +14,7 @@ namespace Reynolds.Expressions.Expressions
 		static internal Expression Get(params Expression[] terms)
 		{
 			if(terms.Length == 0)
-				return 1.0;
+				return 1;
 
 			if(terms.Length == 1)
 				return terms[0];
@@ -57,10 +57,10 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
 		{
 			Dictionary<Expression, Expression> newFactors = new Dictionary<Expression, Expression>();
-			double coefficient = 1.0;
+			dynamic coefficient = 1;
 
 			Action<Expression> addFactor = delegate(Expression e)
 			{
@@ -68,21 +68,21 @@ namespace Reynolds.Expressions.Expressions
 					coefficient *= e.Value;
 				else
 				{
-					ApplyExpression ae = e as ApplyExpression;
-					if(null != ae && ae.f == Expression.Pow)
+					ApplicationExpression ae = e as ApplicationExpression;
+					if(null != ae && ae.Applicand == Expression.Pow)
 					{
 						Expression p;
-						if(!newFactors.TryGetValue(ae.x[0], out p))
-							p = 0.0;
-						p += ae.x[1];
-						newFactors[ae.x[0]] = p;
+						if(!newFactors.TryGetValue(ae.Arguments[0], out p))
+							p = 0;
+						p += ae.Arguments[1];
+						newFactors[ae.Arguments[0]] = p;
 					}
 					else
 					{
 						Expression p;
 						if(!newFactors.TryGetValue(e, out p))
-							p = 0.0;
-						p += 1.0;
+							p = 0;
+						p += 1;
 						newFactors[e] = p;
 					}
 				}
@@ -115,15 +115,15 @@ namespace Reynolds.Expressions.Expressions
 				{
 					if(kv.Key.IsConstant)
 						coefficient *= Math.Pow(kv.Key.Value, p.Value);
-					else if(p.Value == 1.0)
+					else if(p.Value == 1)
 						fs.Add(kv.Key);
-					else if(p.Value != 0.0)
+					else if(p.Value != 0)
 						fs.Add(Expression.Pow[kv.Key, p]);
 				}
 				else
 					fs.Add(Expression.Pow[kv.Key, p]);
 			}
-			if(coefficient == 1.0)
+			if(coefficient == 1)
 				return Get(fs.ToArray());
 			else
 				return cache[CoefficientExpression.Get(coefficient, Get(fs.ToArray()))];

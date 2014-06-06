@@ -25,10 +25,10 @@ namespace Reynolds.Expressions
 
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
-			return (s == this) ? Expression.One : Expression.Zero;
+			return (s == this) ? 1 : 0;
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
 		{
 			return this;
 		}

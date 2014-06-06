@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Reynolds.Expressions.Functions
 {
-	public class DelegateFunction : Function
+	public class DelegateFunction : FunctionExpression
 	{
 		public delegate double EvaluateDelegate(double[] x);
 		public delegate Expression PartialDerivativeDelegate(Expression[] x);
@@ -53,7 +53,7 @@ namespace Reynolds.Expressions.Functions
 			protected set;
 		}
 
-		public override Expression PartialDerivative(int i, params Expression[] x)
+		public override Expression GetPartialDerivative(int i, params Expression[] x)
 		{
 			return partials[i](x);
 		}

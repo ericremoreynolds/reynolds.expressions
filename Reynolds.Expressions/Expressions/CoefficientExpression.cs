@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Reynolds.Mappings;
 
 namespace Reynolds.Expressions.Expressions
 {
 	public class CoefficientExpression : Expression
 	{
-		public readonly double Coefficient;
+		public readonly dynamic Coefficient;
 		public readonly Expression Expression;
 
 		//class Comparer : IEqualityComparer<CoefficientExpression>
@@ -23,23 +24,19 @@ namespace Reynolds.Expressions.Expressions
 		//   }
 		//}
 
-		static Dictionary<Tuple<double, Expression>, CoefficientExpression> cache = new Dictionary<Tuple<double, Expression>, CoefficientExpression>();
-		public static Expression Get(double coefficient, Expression expression)
+		static WeakLazyMapping<object, Expression, CoefficientExpression> cache = new WeakLazyMapping<object, Expression, CoefficientExpression>((o, e) => new CoefficientExpression(o, e));
+		public static Expression Get(dynamic coefficient, Expression expression)
 		{
-			if(coefficient == 1.0)
+			if(coefficient == 1)
 				return expression;
 
 			if(expression.IsConstant)
 				return coefficient * expression.Value;
 
-			var key = Tuple.Create(coefficient, expression);
-			CoefficientExpression e;
-			if(!cache.TryGetValue(key, out e))
-				cache[key] = e = new CoefficientExpression(coefficient, expression);
-			return e;
+			return cache[(object) coefficient, expression];
 		}
 
-		protected CoefficientExpression(double coefficient, Expression expression)
+		protected CoefficientExpression(object coefficient, Expression expression)
 		{
 			this.Coefficient = coefficient;
 			this.Expression = expression;
@@ -63,10 +60,10 @@ namespace Reynolds.Expressions.Expressions
 				return Get(Coefficient, d);
 		}
 
-		protected override Expression Simplify(VisitCache cache)
+		protected override Expression Normalize(VisitCache cache)
 		{
-			if(Coefficient == 0.0)
-				return Expression.Zero;
+			if(Coefficient == 0)
+				return Expression.Constant(Coefficient);
 
 			var e = cache[this.Expression];
 			if(e.IsConstant)
@@ -78,15 +75,14 @@ namespace Reynolds.Expressions.Expressions
 
 			SumExpression se = e as SumExpression;
 			if(se != null)
-				return SumExpression.Get((from term in se.Terms
-												  select Get(Coefficient, term)).ToArray());
+				return SumExpression.Get((from term in se.Terms select Get((object) Coefficient, term)).ToArray());
 
 			return Get(Coefficient, e);
 		}
 
 		public override string ToString()
 		{
-			if(Coefficient == -1.0)
+			if(Coefficient == -1)
 				return "(-" + Expression.ToString() + ")";
 			else
 				return "(" + Coefficient.ToString() + " " + Expression.ToString() + ")";
@@ -94,7 +90,7 @@ namespace Reynolds.Expressions.Expressions
 
 		public override string ToCode()
 		{
-			if(Coefficient == -1.0)
+			if(Coefficient == -1)
 				return "(-" + Expression.ToCode() + ")";
 			else
 				return "(" + Coefficient.ToString() + "d*" + Expression.ToCode() + ")";

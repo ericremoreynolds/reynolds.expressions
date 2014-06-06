@@ -5,11 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}</ProjectGuid>
+    <ProjectGuid>{BEE69265-E0C6-4490-A973-9AB4B4A96FA1}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Reynolds.Expressions</RootNamespace>
-    <AssemblyName>Reynolds.Expressions</AssemblyName>
+    <RootNamespace>Reynolds.Expressions.Tests</RootNamespace>
+    <AssemblyName>Reynolds.Expressions.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -30,7 +30,11 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="nunit.framework, Version=2.6.3.13283, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -40,26 +44,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Expressions\ApplicationExpression.cs" />
-    <Compile Include="Expressions\CoefficientExpression.cs" />
-    <Compile Include="Expressions\ConstantExpression.cs" />
-    <Compile Include="Expression.cs" />
-    <Compile Include="Functions\DelegateFunction.cs" />
-    <Compile Include="Functions\ExpressionFunction.cs" />
-    <Compile Include="ExpressionSubstitution.cs" />
-    <Compile Include="Expressions\FieldExpression.cs" />
-    <Compile Include="Expressions\FunctionExpression.cs" />
-    <Compile Include="Expressions\ProductExpression.cs" />
-    <Compile Include="Functions\StandardFunctions.cs" />
+    <Compile Include="ExpressionTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Expressions\SumExpression.cs" />
-    <Compile Include="Symbol.cs" />
-    <Compile Include="VisitCache.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\reynolds.mappings\Reynolds.Mappings\Reynolds.Mappings.csproj">
-      <Project>{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}</Project>
-      <Name>Reynolds.Mappings</Name>
+    <ProjectReference Include="..\Reynolds.Expressions\Reynolds.Expressions.csproj">
+      <Project>{B36F1C4F-A23C-4306-A0F9-3DCB10144AE3}</Project>
+      <Name>Reynolds.Expressions</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

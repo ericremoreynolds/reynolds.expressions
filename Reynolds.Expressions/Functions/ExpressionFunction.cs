@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Reynolds.Expressions.Functions
 {
-	public class ExpressionFunction : Function
+	public class ExpressionFunction : FunctionExpression
 	{
 		public readonly Symbol[] Arguments;
 		public readonly Expression Body;
@@ -32,7 +32,7 @@ namespace Reynolds.Expressions.Functions
 			throw new NotImplementedException();
 		}
 
-		public override Expression PartialDerivative(int i, params Expression[] x)
+		public override Expression GetPartialDerivative(int i, params Expression[] x)
 		{
 			throw new NotImplementedException();
 		}
