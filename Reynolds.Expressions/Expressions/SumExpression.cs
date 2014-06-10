@@ -57,7 +57,7 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			Dictionary<Expression, dynamic> newTerms = new Dictionary<Expression, dynamic>();
 			dynamic constant = 0;
@@ -96,7 +96,7 @@ namespace Reynolds.Expressions.Expressions
 
 			foreach(var t in Terms)
 			{
-				var sf = cache[t];
+				var sf = context.Normalize(t);
 				var sumEx = sf as SumExpression;
 				if(sumEx != null)
 				{

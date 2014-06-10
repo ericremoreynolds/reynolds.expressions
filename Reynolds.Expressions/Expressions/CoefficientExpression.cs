@@ -60,12 +60,12 @@ namespace Reynolds.Expressions.Expressions
 				return Get(Coefficient, d);
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			if(Coefficient == 0)
 				return Expression.Constant(Coefficient);
 
-			var e = cache[this.Expression];
+			var e = context.Normalize(this.Expression);
 			if(e.IsConstant)
 				return Coefficient * e.Value;
 

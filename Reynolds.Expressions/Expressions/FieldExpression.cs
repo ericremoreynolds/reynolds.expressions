@@ -33,7 +33,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}

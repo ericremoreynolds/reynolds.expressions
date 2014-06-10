@@ -57,7 +57,7 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			Dictionary<Expression, Expression> newFactors = new Dictionary<Expression, Expression>();
 			dynamic coefficient = 1;
@@ -90,7 +90,7 @@ namespace Reynolds.Expressions.Expressions
 
 			foreach(var t in Factors)
 			{
-				var sf = cache[t];
+				var sf = context.Normalize(t);
 				var ce = sf as CoefficientExpression;
 				if(ce != null)
 				{
@@ -110,7 +110,7 @@ namespace Reynolds.Expressions.Expressions
 			List<Expression> fs = new List<Expression>();
 			foreach(var kv in newFactors)
 			{
-				var p = cache[kv.Value];
+				var p = context.Normalize(kv.Value);
 				if(p.IsConstant)
 				{
 					if(kv.Key.IsConstant)
@@ -126,7 +126,7 @@ namespace Reynolds.Expressions.Expressions
 			if(coefficient == 1)
 				return Get(fs.ToArray());
 			else
-				return cache[CoefficientExpression.Get(coefficient, Get(fs.ToArray()))];
+				return context.Normalize(CoefficientExpression.Get(coefficient, Get(fs.ToArray())));
 		}
 
 		public override string ToString()

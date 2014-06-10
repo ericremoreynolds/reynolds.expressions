@@ -33,7 +33,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -107,7 +107,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -183,7 +183,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -214,7 +214,7 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override Expression Normalize(Expression[] arguments)
+		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
 			{

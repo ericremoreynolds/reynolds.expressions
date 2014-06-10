@@ -47,9 +47,12 @@ namespace Reynolds.Expressions.Tests
 			var y = new Symbol("y");
 
 			var e1 = 2 * x + 3 * y;
-			var e2 = e1.Substitute(x | 3, y | -2).Normalize();
+			var e2 = e1[x | 3, y | -2].Normalize();
 
 			Assert.IsTrue(e2.IsZero);
+
+			var cf1 = e1.Compile(x, y);
+			Assert.IsTrue(e1[x | 3, y | 5].NormalizesTo(cf1(3, 5)));
 		}
 
 		[Test]
@@ -62,7 +65,10 @@ namespace Reynolds.Expressions.Tests
 
 			var e = 2 * x[y+1];
 
-			Assert.IsTrue(e.Substitute(x | a, y | 0).NormalizesTo(222));
+			Assert.IsTrue(e[x | a, y | 0].NormalizesTo(222));
+
+			var cf = e.Compile<Func<int[], int, int>>(x, y);
+			Assert.AreEqual(246, cf(a, -1));
 		}
 
 		[Test]
@@ -71,11 +77,12 @@ namespace Reynolds.Expressions.Tests
 			var x = new Symbol("x");
 			var y = new Symbol("y");
 
-			int[] a = new int[] { 123, 111 };
-
 			var e1 = x[y + 1];
 
-			Assert.IsTrue(e1.Substitute(x | Expression.Exp, y | 0).NormalizesTo(Math.E));
+			Assert.That(e1[x | Expression.Exp, y | 0].Normalize().Value, Is.InRange(Math.E - 0.001, Math.E + 0.001));
+
+			//var cf2 = e1.Compile<Func<Func<double, double>, double, double>>(x, y);
+			//Assert.That(cf2(Math.Exp, 0.0), Is.InRange(Math.E - 0.001, Math.E + 0.001));
 		}
 
 		[Test]
@@ -102,8 +109,11 @@ namespace Reynolds.Expressions.Tests
 			var e = -x + (3*x) + y;
 
 			Assert.IsTrue(e.NormalizesTo(2 * x + y));
-			Assert.IsTrue(e.Substitute(x | 1, y | 2).NormalizesTo(4));
+			Assert.IsTrue(e[x | 1, y | 2).NormalizesTo(4));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(2));
+
+			var cf = e.Compile(x, y);
+			Assert.IsTrue(e[x | 3.0, y | 2.0).NormalizesTo(cf(3.0, 2.0)));
 		}
 
 		[Test]
@@ -114,8 +124,11 @@ namespace Reynolds.Expressions.Tests
 			var e = Expression.Pow[x, 3] / x * y;
 
 			Assert.IsTrue(e.NormalizesTo(Expression.Pow[x, 2] * y));
-			Assert.IsTrue(e.Substitute(x | 3, y | 2).NormalizesTo(18));
+			Assert.IsTrue(e[x | 3, y | 2).NormalizesTo(18));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(2 * x * y));
+
+			var cf = e.Compile(x, y);
+			Assert.IsTrue(e[x | 3.0, y | 2.0).NormalizesTo(cf(3.0, 2.0)));
 		}
 
 		[Test]
@@ -126,8 +139,11 @@ namespace Reynolds.Expressions.Tests
 			var e = Expression.Pow[x, y];
 
 			Assert.IsTrue(Expression.Pow[Expression.Pow[x, 2], 3].NormalizesTo(Expression.Pow[x, 6]));
-			Assert.IsTrue(e.Substitute(x | 2.0).Derive(y).NormalizesTo(Expression.Pow[2.0, y] * Math.Log(2.0)));
-			Assert.IsTrue(e.Substitute(x | 2, y | 3).NormalizesTo(8));
+			Assert.IsTrue(e[x | 2.0).Derive(y).NormalizesTo(Expression.Pow[2.0, y] * Math.Log(2.0)));
+			Assert.IsTrue(e[x | 2, y | 3).NormalizesTo(8));
+
+			var cf = e.Compile(x, y);
+			Assert.IsTrue(e[x | 3.0, y | 2.0).NormalizesTo(cf(3.0, 2.0)));
 		}
 
 		[Test]
@@ -135,8 +151,11 @@ namespace Reynolds.Expressions.Tests
 		{
 			var x = new Symbol("x");
 			var e = Expression.Sin[x];
-			Assert.IsTrue(e.Substitute(x | 2.0 * Math.PI).NormalizesTo(0));
+			Assert.That(e[x | 2.0 * Math.PI).Normalize().Value, Is.InRange(-0.0001, 0.0001));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(Expression.Cos[x]));
+
+			var cf = e.Compile(x);
+			Assert.IsTrue(e[x | 3.0).NormalizesTo(cf(3.0)));
 		}
 
 		[Test]
@@ -144,8 +163,11 @@ namespace Reynolds.Expressions.Tests
 		{
 			var x = new Symbol("x");
 			var e = Expression.Cos[x];
-			Assert.IsTrue(e.Substitute(x | 2.0 * Math.PI).NormalizesTo(1));
+			Assert.That(e[x | 2.0 * Math.PI).Normalize().Value, Is.InRange(0.9999, 1.0001));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(-Expression.Sin[x]));
+
+			var cf = e.Compile(x);
+			Assert.IsTrue(e[x | 3.0).NormalizesTo(cf(3.0)));
 		}
 
 		[Test]
@@ -153,8 +175,11 @@ namespace Reynolds.Expressions.Tests
 		{
 			var x = new Symbol("x");
 			var e = Expression.Exp[2*x];
-			Assert.IsTrue(e.Substitute(x | 0.5).NormalizesTo(Math.E));
+			Assert.IsTrue(e[x | 0.5).NormalizesTo(Math.E));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(2 * e));
+
+			var cf = e.Compile(x);
+			Assert.IsTrue(e[x | 3.0).NormalizesTo(cf(3.0)));
 		}
 
 		[Test]
@@ -162,11 +187,14 @@ namespace Reynolds.Expressions.Tests
 		{
 			var x = new Symbol("x");
 			var e = Expression.Log[x];
-			Assert.IsTrue(e.Substitute(x | Math.E).NormalizesTo(1));
+			Assert.IsTrue(e[x | Math.E).NormalizesTo(1));
 			Assert.IsTrue(e.Derive(x).NormalizesTo(1 / x));
+
+			var cf = e.Compile(x);
+			Assert.IsTrue(e[x | 3.0).NormalizesTo(cf(3.0)));
 		}
 
-		class FieldTestClass
+		public class FieldTestClass
 		{
 			public int F = 2;
 			public double G
@@ -188,8 +216,16 @@ namespace Reynolds.Expressions.Tests
 
 			var c = new FieldTestClass();
 
-			Assert.IsTrue(e.Substitute(x | c, y | Expression.Field("F")).NormalizesTo(c.F));
-			Assert.IsTrue(e.Substitute(x | c, y | Expression.Field("G")).NormalizesTo(c.G));
+			Assert.IsTrue(e[x | c, y | Expression.Field("F")).NormalizesTo(c.F));
+			Assert.IsTrue(e[x | c, y | Expression.Field("G")).NormalizesTo(c.G));
+
+			var e2 = e[y | Expression.Field("F"));
+			var cf2 = e2.Compile<Func<FieldTestClass, int>>(x);
+			Assert.AreEqual(2, cf2(c));
+
+			var e3 = e[y | Expression.Field("G"));
+			var cf3 = e3.Compile<Func<FieldTestClass, double>>(x);
+			Assert.AreEqual(3.0, cf3(c));
 		}
 	}
 }

@@ -40,12 +40,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExpressionCompiler.cs" />
     <Compile Include="Expressions\ApplicationExpression.cs" />
     <Compile Include="Expressions\CoefficientExpression.cs" />
     <Compile Include="Expressions\ConstantExpression.cs" />
     <Compile Include="Expression.cs" />
-    <Compile Include="Functions\DelegateFunction.cs" />
-    <Compile Include="Functions\ExpressionFunction.cs" />
     <Compile Include="ExpressionSubstitution.cs" />
     <Compile Include="Expressions\FieldExpression.cs" />
     <Compile Include="Expressions\FunctionExpression.cs" />
