@@ -28,7 +28,7 @@ namespace Reynolds.Expressions
 			return (s == this) ? 1 : 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -48,9 +48,9 @@ namespace Reynolds.Expressions
 			return this.Name;
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return this.Name;
+			context.Emit(this.Name);
 		}
 	}
 }

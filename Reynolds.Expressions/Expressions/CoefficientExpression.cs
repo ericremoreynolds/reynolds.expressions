@@ -60,12 +60,12 @@ namespace Reynolds.Expressions.Expressions
 				return Get(Coefficient, d);
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			if(Coefficient == 0)
 				return Expression.Constant(Coefficient);
 
-			var e = cache[this.Expression];
+			var e = context.Normalize(this.Expression);
 			if(e.IsConstant)
 				return Coefficient * e.Value;
 
@@ -88,12 +88,12 @@ namespace Reynolds.Expressions.Expressions
 				return "(" + Coefficient.ToString() + " " + Expression.ToString() + ")";
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
 			if(Coefficient == -1)
-				return "(-" + Expression.ToCode() + ")";
+				context.Emit("(-").Emit(Expression).Emit(")");
 			else
-				return "(" + Coefficient.ToString() + "d*" + Expression.ToCode() + ")";
+				context.Emit("(").Emit(Coefficient).Emit("d*").Emit(Expression).Emit(")");
 		}
 	}
 }

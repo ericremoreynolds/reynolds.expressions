@@ -40,12 +40,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExpressionCompiler.cs" />
     <Compile Include="Expressions\ApplicationExpression.cs" />
+    <Compile Include="Expressions\CastExpression.cs" />
     <Compile Include="Expressions\CoefficientExpression.cs" />
     <Compile Include="Expressions\ConstantExpression.cs" />
     <Compile Include="Expression.cs" />
-    <Compile Include="Functions\DelegateFunction.cs" />
-    <Compile Include="Functions\ExpressionFunction.cs" />
     <Compile Include="ExpressionSubstitution.cs" />
     <Compile Include="Expressions\FieldExpression.cs" />
     <Compile Include="Expressions\FunctionExpression.cs" />
@@ -57,7 +57,7 @@
     <Compile Include="VisitCache.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\reynolds.mappings\Reynolds.Mappings\Reynolds.Mappings.csproj">
+    <ProjectReference Include="..\..\Reynolds.Mappings\Reynolds.Mappings\Reynolds.Mappings.csproj">
       <Project>{1DAB820F-0DA3-40A4-83EF-F205A3F59E42}</Project>
       <Name>Reynolds.Mappings</Name>
     </ProjectReference>

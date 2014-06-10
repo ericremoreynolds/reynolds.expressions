@@ -27,11 +27,6 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public virtual Expression TrySimplify(params Expression[] x)
-		{
-			return null; //	this[x];
-		}
-
 		protected override Expression Substitute(VisitCache cache)
 		{
 			return this;
@@ -42,28 +37,34 @@ namespace Reynolds.Expressions
 			throw new NotImplementedException();
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
-			throw new NotImplementedException();
+			context.Emit(this).Emit("(");
+			for(int k = 0; k < arguments.Length; k++)
+			{
+				if(k > 0)
+					context.Emit(", ");
+				context.Emit(arguments[k]);
+			}
+			context.Emit(")");
 		}
 
-		public override Expression Normalize(Expression[] arguments)
+		public override string ToString(Expression[] arguments)
+		{
+			return this.ToString() + "[" + string.Join(", ", arguments.Select(a => a.ToString()).ToArray()) + "]";
+		}
+
+		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
 				return Evaluate((from x in arguments select Convert.ToDouble((object) x.Value)).ToArray());
 			else
-			{
-				var df = TrySimplify(arguments);
-				if(df != null)
-					return df.Normalize(); //cache[df]; // TODO: not using cache here
-				else
-					return this[arguments];
-			}
+				return this[arguments];
 		}
 	}
 }

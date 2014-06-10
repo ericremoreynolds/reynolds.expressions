@@ -33,7 +33,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -51,9 +51,9 @@ namespace Reynolds.Expressions.Expressions
 			return FieldName;
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return FieldName;
+			context.Emit(FieldName);
 		}
 	}
 }

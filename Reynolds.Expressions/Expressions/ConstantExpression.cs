@@ -33,7 +33,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -75,9 +75,9 @@ namespace Reynolds.Expressions.Expressions
 			return value.ToString();
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return value.ToString() + "d";
+			context.Emit(value).Emit("d");
 		}
 	}
 
@@ -107,7 +107,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -149,9 +149,9 @@ namespace Reynolds.Expressions.Expressions
 			return value.ToString();
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return value.ToString();
+			context.Emit(value);
 		}
 	}
 
@@ -183,7 +183,7 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			return this;
 		}
@@ -201,9 +201,9 @@ namespace Reynolds.Expressions.Expressions
 			return obj.ToString();
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return obj.ToString();
+			context.Emit(obj);
 		}
 
 		public override dynamic Value
@@ -214,7 +214,7 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override Expression Normalize(Expression[] arguments)
+		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
 			{

@@ -57,7 +57,7 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			Dictionary<Expression, dynamic> newTerms = new Dictionary<Expression, dynamic>();
 			dynamic constant = 0;
@@ -96,7 +96,7 @@ namespace Reynolds.Expressions.Expressions
 
 			foreach(var t in Terms)
 			{
-				var sf = cache[t];
+				var sf = context.Normalize(t);
 				var sumEx = sf as SumExpression;
 				if(sumEx != null)
 				{
@@ -136,22 +136,20 @@ namespace Reynolds.Expressions.Expressions
 			return sb.ToString();
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			StringBuilder sb = new StringBuilder();
-			sb.Append("(");
+			context.Emit("(");
 			bool first = true;
 			for(int k = 0; k < Terms.Length; k++)
 			{
 				CoefficientExpression ce = Terms[k] as CoefficientExpression;
 				if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0))
 					if(!first)
-						sb.Append("+");
-				sb.Append(Terms[k].ToCode());
+						context.Emit("+");
+				context.Emit(Terms[k]);
 				first = false;
 			}
-			sb.Append(")");
-			return sb.ToString();
+			context.Emit(")");
 		}
 	}
 }

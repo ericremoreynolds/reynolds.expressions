@@ -60,13 +60,13 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		protected override Expression Normalize(VisitCache cache)
+		protected override Expression Normalize(INormalizeContext context)
 		{
 			Expression[] dx = new Expression[Arguments.Length];
 			for(int k = 0; k < Arguments.Length; k++)
-				dx[k] = cache[Arguments[k]];
+				dx[k] = context.Normalize(Arguments[k]);
 
-			return Applicand.Normalize(dx);
+			return context.Normalize(Applicand, dx);
 		}
 
 		public override string ToString()
@@ -74,9 +74,9 @@ namespace Reynolds.Expressions.Expressions
 			return Applicand.ToString(Arguments);
 		}
 
-		public override string ToCode()
+		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			return Applicand.ToCode(Arguments);
+			context.Emit(Applicand, Arguments);
 		}
 
 		public static Expression Get(Expression applicand, Expression[] arguments)

@@ -8,13 +8,38 @@ using System.Reflection;
 using Reynolds.Mappings;
 using Reynolds.Expressions.Functions;
 using Reynolds.Expressions.Expressions;
+using System.CodeDom;
 
 namespace Reynolds.Expressions
 {
 	public delegate double CompiledExpression(params double[] x);
 
+	public interface INormalizeContext
+	{
+		Expression Normalize(Expression e);
+		Expression Normalize(Expression e, Expression[] arguments);
+	}
+
 	public abstract class Expression : IComparable<Expression>
 	{
+		protected class NormalizeContext : INormalizeContext
+		{
+			Dictionary<Expression, Expression> cache = new Dictionary<Expression, Expression>();
+
+			public Expression Normalize(Expression e)
+			{
+				Expression f;
+				if(!cache.TryGetValue(e, out f))
+					cache[e] = f = e.Normalize(this);
+				return f;
+			}
+
+			public Expression Normalize(Expression e, Expression[] arguments)
+			{
+				return e.Normalize(this, arguments);
+			}
+		}
+
 		private static int ordinalCounter = Int32.MinValue;
 		private int ordinal;
 
@@ -47,18 +72,31 @@ namespace Reynolds.Expressions
 		public Expression Derive(Expression s)
 		{
 			VisitCache cache = new VisitCache((f, c) => f.Derive(c, s));
+			cache.Add(s, 1);
 			return cache[this];
 		}
+		protected abstract Expression Derive(VisitCache cache, Expression s);
 
-		public Expression Normalize()
+		public Expression Normalized
 		{
-			VisitCache cache = new VisitCache((f, c) => f.Normalize(c));
-			return cache[this];
+			get
+			{
+				NormalizeContext context = new NormalizeContext();
+				return context.Normalize(this);
+			}
+		}
+		protected abstract Expression Normalize(INormalizeContext context);
+		protected virtual Expression Normalize(INormalizeContext context, Expression[] arguments)
+		{
+			return this[arguments];
+		}
+		public static Expression[] Normalize(params Expression[] expressions)
+		{
+			NormalizeContext context = new NormalizeContext();
+			return expressions.Select(e => context.Normalize(e)).ToArray();
 		}
 
 		protected abstract Expression Substitute(VisitCache cache);
-		protected abstract Expression Derive(VisitCache cache, Expression s);
-		protected abstract Expression Normalize(VisitCache cache);
 
 		public virtual bool IsConstant
 		{
@@ -102,7 +140,6 @@ namespace Reynolds.Expressions
 			return ConstantIntExpression.Get(a);
 		}
 
-
 		public static Expression operator +(Expression f, Expression g)
 		{
 			return SumExpression.Get(f, g);
@@ -130,13 +167,21 @@ namespace Reynolds.Expressions
 
 		public bool NormalizesTo(object obj)
 		{
-			var n = this.Normalize();
+			var n = this.Normalized;
 			var other = obj as Expression;
 			if(other != null)
-				return other.Normalize() == n;
+				return other.Normalized == n;
 			if(n.IsConstant)
 				return n.Value == (dynamic) obj;
 			return false;
+		}
+
+		public Expression this[params object[] arguments]
+		{
+			get
+			{
+				return ApplicationExpression.Get(this, arguments.Select(a => Create(a)).ToArray());
+			}
 		}
 
 		public virtual Expression this[params Expression[] arguments]
@@ -147,7 +192,7 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public virtual Expression this[params ExpressionSubstitution[] substitutions]
+		public Expression this[params ExpressionSubstitution[] substitutions]
 		{
 			get
 			{
@@ -155,186 +200,117 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public static readonly FunctionExpression Log = new DelegateFunction(
-			"log", "Math.Log",
-			x => Math.Log(x[0]),
-			x => 1 / x[0]
-			);
-
-		public static readonly FunctionExpression Exp = new DelegateFunction(
-			"exp", "Math.Exp",
-			x => Math.Exp(x[0]),
-			x => Exp[x[0]]
-			);
-
-		public static readonly FunctionExpression Pow = new DelegateFunction(
-			"pow", "Math.Pow",
-			x => Math.Pow(x[0], x[1]),
-			x => x[1] * Pow[x[0], x[1] - 1],
-			x => Log[x[0]] * Pow[x[0], x[1]]
-			);
-
-		public static readonly FunctionExpression Sin = new DelegateFunction(
-			"sin", "Math.Sin",
-			x => Math.Sin(x[0]),
-			null // set after
-			);
-
-		public static readonly FunctionExpression Cos = new DelegateFunction(
-			"cos", "Math.Cos",
-			x => Math.Cos(x[0]),
-			null // set after
-			);
+		public static readonly FunctionExpression Log = new LogFunction();
+		public static readonly FunctionExpression Exp = new ExpFunction();
+		public static readonly FunctionExpression Pow = new PowFunction();
+		public static readonly FunctionExpression Sin = new SinFunction();
+		public static readonly FunctionExpression Cos = new CosFunction();
 		
-		static Expression()
+		//public static MethodInfo[] Compile(Expression[] es, Symbol[] x, Type[] types)
+		//{
+		//   ExpressionSubstitution[] subs = new ExpressionSubstitution[x.Length];
+		//   for(int k = 0; k < x.Length; k++)
+		//      subs[k] = x[k] | new Symbol("x" + k.ToString());
+		//   es = (from e in es select e.Substitute(subs)).ToArray();
+
+		//   StringBuilder sb = new StringBuilder();
+		//   sb.Append("using System;");
+		//   sb.Append("public static class GeneratedFunction {");
+		//   for(int k = 0; k < es.Length; k++)
+		//   {
+		//      sb.Append("public static double f" + k.ToString() + "(" + string.Join(", ", (from i in Enumerable.Range(0, x.Length) select types[i].FullName + " x" + i.ToString())) + ") { return " + es[k].ToCode() + "; }");
+		//   }
+		//   sb.Append("}");
+		//   string code = sb.ToString();
+
+		//   CompilerParameters parameters = new CompilerParameters();
+		//   parameters.GenerateInMemory = true;
+		//   parameters.TreatWarningsAsErrors = false;
+		//   parameters.GenerateExecutable = false;
+		//   parameters.CompilerOptions = "/optimize";
+		//   parameters.IncludeDebugInformation = false;
+		//   parameters.ReferencedAssemblies.Add("System.dll");
+		//   foreach(var typ in types)
+		//      parameters.ReferencedAssemblies.Add(typ.Assembly.Location);
+
+		//   CompilerResults results = new CSharpCodeProvider().CompileAssemblyFromSource(parameters, new string[] { code });
+
+		//   if(results.Errors.HasErrors)
+		//      throw new Exception("Compile error: " + results.Errors[0].ToString()); //, results.Errors);
+
+		//   MethodInfo[] ces = new MethodInfo[es.Length];
+		//   for(int k = 0; k < es.Length; k++)
+		//   {
+		//      var mi = results.CompiledAssembly.GetModules()[0].GetType("GeneratedFunction").GetMethod("f" + k.ToString());
+		//      ces[k] = mi;
+		//   }
+
+		//   return ces;
+		//}
+
+		public TDelegate Compile<TDelegate>(params Symbol[] x)
 		{
-			((DelegateFunction) Sin).SetPartial(0, x => Cos[x[0]]);
-			((DelegateFunction) Cos).SetPartial(0, x => -Sin[x[0]]);
-			((DelegateFunction) Pow).Stringify = (x) => (x[0].ToString() + "^" + x[1].ToString());
-
-			((DelegateFunction) Pow).Simplify = delegate(Expression[] x)
-			{
-				var ae = x[0] as ApplicationExpression;
-				var pe = x[0] as ProductExpression;
-				CoefficientExpression ce;
-				if(pe != null)
-					return ProductExpression.Get((from f in pe.Factors select Expression.Pow[f, x[1]]).ToArray());
-				else if(null != (ce = x[0] as CoefficientExpression))
-					return ProductExpression.Get(Expression.Pow[ce.Coefficient, x[1]], Expression.Pow[ce.Expression, x[1]]);
-				else if(ae != null && ae.Applicand == Expression.Pow)
-					return Expression.Pow[ae.Arguments[0], ae.Arguments[1] * x[1]];
-				else
-					return null;
-			};
-
-			((DelegateFunction) Pow).Codify = delegate(Expression[] x)
-			{
-				if(x[1].IsConstant && x[1].Value == -1)
-					return "(1d/" + x[0].ToString() + ")";
-				else
-					return null;
-			};
+			ExpressionCompiler c = new ExpressionCompiler();
+			c.Add(this, typeof(TDelegate), x);
+			return (TDelegate) (object) c.CompileAll()[0];
 		}
 
-		public static MethodInfo[] Compile(Expression[] es, Symbol[] x, Type[] types)
+		public Func<double, double> Compile(Symbol x0)
 		{
-			ExpressionSubstitution[] subs = new ExpressionSubstitution[x.Length];
-			for(int k = 0; k < x.Length; k++)
-				subs[k] = x[k] | new Symbol("x" + k.ToString());
-			es = (from e in es
-					select e.Substitute(subs)).ToArray();
+			return Compile<Func<double, double>>(x0);
+		}
 
-			StringBuilder sb = new StringBuilder();
-			sb.Append("using System;");
-			sb.Append("public static class GeneratedFunction {");
-			for(int k = 0; k < es.Length; k++)
+		public Func<double, double, double> Compile(Symbol x0, Symbol x1)
+		{
+			return Compile<Func<double, double, double>>(x0, x1);
+		}
+
+
+		public Func<double, double, double, double> Compile(Symbol x0, Symbol x1, Symbol x2)
+		{
+			return Compile<Func<double, double, double, double>>(x0, x1, x2);
+		}
+
+		public abstract void GenerateCode(ICodeGenerationContext context);
+		public virtual void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
+		{
+			context.Emit(this);
+
+			FieldExpression fe;
+			if(arguments.Length == 1 && null != (fe = arguments[0] as FieldExpression))
+				context.Emit(".").Emit(fe.FieldName);
+			else
 			{
-				sb.Append("public static double f" + k.ToString() + "(" + string.Join(", ", (from i in Enumerable.Range(0, x.Length) select types[i].FullName + " x" + i.ToString())) + ") { return " + es[k].ToCode() + "; }");
+				context.Emit("[");
+				for(int k = 0; k < arguments.Length; k++)
+				{
+					if(k > 0)
+						context.Emit(", ");
+					context.Emit(arguments[k]);
+				}
+				context.Emit("]");
 			}
-			sb.Append("}");
-			string code = sb.ToString();
-
-			CompilerParameters parameters = new CompilerParameters();
-			parameters.GenerateInMemory = true;
-			parameters.TreatWarningsAsErrors = false;
-			parameters.GenerateExecutable = false;
-			parameters.CompilerOptions = "/optimize";
-			parameters.IncludeDebugInformation = false;
-			parameters.ReferencedAssemblies.Add("System.dll");
-			foreach(var typ in types)
-				parameters.ReferencedAssemblies.Add(typ.Assembly.Location);
-
-			CompilerResults results = new CSharpCodeProvider().CompileAssemblyFromSource(parameters, new string[] { code });
-
-			if(results.Errors.HasErrors)
-				throw new Exception("Compile error: " + results.Errors[0].ToString()); //, results.Errors);
-
-			MethodInfo[] ces = new MethodInfo[es.Length];
-			for(int k = 0; k < es.Length; k++)
-			{
-				var mi = results.CompiledAssembly.GetModules()[0].GetType("GeneratedFunction").GetMethod("f" + k.ToString());
-				ces[k] = mi;
-			}
-
-			return ces;
-		}
-
-		public static CompiledExpression[] Compile(Expression[] es, params Symbol[] x)
-		{
-			ExpressionSubstitution[] subs = new ExpressionSubstitution[x.Length];
-			for(int k = 0; k < x.Length; k++)
-				subs[k] = x[k] | new Symbol("x[" + k.ToString() + "]");
-			es = (from e in es select e.Substitute(subs)).ToArray();
-
-			StringBuilder sb = new StringBuilder();
-			sb.Append("using System;");
-			sb.Append("public static class GeneratedFunction {");
-			for(int k=0; k<es.Length; k++)
-			{
-				sb.Append("public static double f" + k.ToString() + "(params double[] x) { return " + es[k].ToCode() + "; }");
-			}
-			sb.Append("}");
-			string code = sb.ToString();
-
-			CompilerParameters parameters = new CompilerParameters();
-			parameters.GenerateInMemory = true;
-			parameters.TreatWarningsAsErrors = false;
-			parameters.GenerateExecutable = false;
-			parameters.CompilerOptions = "/optimize";
-			parameters.IncludeDebugInformation = false;
-			parameters.ReferencedAssemblies.Add("System.dll");
-
-			CompilerResults results = new CSharpCodeProvider().CompileAssemblyFromSource(parameters, new string[] { code });
-
-			if (results.Errors.HasErrors)
-				throw new Exception("Compile error: " + results.Errors[0].ToString()); //, results.Errors);
-
-			CompiledExpression[] ces = new CompiledExpression[es.Length];
-			for(int k = 0; k < es.Length; k++)
-			{
-				var mi = results.CompiledAssembly.GetModules()[0].GetType("GeneratedFunction").GetMethod("f" + k.ToString());
-				ces[k] = Delegate.CreateDelegate(typeof(CompiledExpression), mi) as CompiledExpression;
-			}
-
-			return ces;
-		}
-
-		public static CompiledExpression Compile(Expression e, params Symbol[] x)
-		{
-			return Compile(new Expression[] { e }, x)[0];
-		}
-
-		public CompiledExpression Compile(params Symbol[] x)
-		{
-			return Compile(this, x);
-		}
-
-		public Func<T1, double> Compile<T1>(Symbol x1)
-		{
-			return (Func<T1, double>) Delegate.CreateDelegate(typeof(Func<T1, double>), Compile(
-				new Expression[] {this},
-				new Symbol[] {x1},
-				new Type[] { typeof(T1) })[0]);
-		}
-
-		public Func<T1, T2, T3, T4, T5, double> Compile<T1, T2, T3, T4, T5>(Symbol x1, Symbol x2, Symbol x3, Symbol x4, Symbol x5)
-		{
-			return (Func<T1, T2, T3, T4, T5, double>) Delegate.CreateDelegate(typeof(Func<T1, T2, T3, T4, T5, double>), Compile(
-				new Expression[] { this },
-				new Symbol[] { x1, x2, x3, x4, x5 },
-				new Type[] { typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(T5) })[0]);
-		}
-
-		public abstract string ToCode();
-
-		public virtual string ToCode(Expression[] arguments)
-		{
-			throw new NotImplementedException();
 		}
 
 		public virtual string ToString(Expression[] arguments)
 		{
-			throw new NotImplementedException();
+			StringBuilder sb = new StringBuilder();
+			sb.Append(this.ToString());
+			FieldExpression fe;
+			if(arguments.Length == 1 && null != (fe = arguments[0] as FieldExpression))
+				sb.Append(".").Append(fe.FieldName);
+			else
+			{
+				sb.Append("[");
+				for(int k = 0; k < arguments.Length; k++)
+				{
+					if(k > 0)
+						sb.Append(", ");
+					sb.Append(arguments[k].ToString());
+				}
+				sb.Append("]");
+			}
+			return sb.ToString();
 		}
 
 		public int CompareTo(Expression other)
@@ -366,12 +342,12 @@ namespace Reynolds.Expressions
 			return FieldExpression.Get(name);
 		}
 
-		public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
+		public static Expression Cast<T>(Expression e)
 		{
-			throw new NotImplementedException();
+			return CastExpression.Get(typeof(T), e);
 		}
 
-		public virtual Expression Normalize(Expression[] arguments)
+		public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
 		{
 			throw new NotImplementedException();
 		}
