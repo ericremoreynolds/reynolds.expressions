@@ -147,6 +147,14 @@ namespace Reynolds.Expressions
 			}
 		}
 
+		public virtual Expression this[params ExpressionSubstitution[] substitutions]
+		{
+			get
+			{
+				return this.Substitute(substitutions);
+			}
+		}
+
 		public static readonly FunctionExpression Log = new DelegateFunction(
 			"log", "Math.Log",
 			x => Math.Log(x[0]),
@@ -332,6 +340,15 @@ namespace Reynolds.Expressions
 		public int CompareTo(Expression other)
 		{
 			return this.ordinal.CompareTo(other.ordinal);
+		}
+
+		public static Expression Create(object obj)
+		{
+			Expression e = obj as Expression;
+			if(e != null)
+				return e;
+			else
+				return Constant(obj);
 		}
 
 		public static Expression Constant(object obj)
