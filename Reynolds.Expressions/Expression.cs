@@ -243,7 +243,7 @@ namespace Reynolds.Expressions
 		public TDelegate Compile<TDelegate>(params Symbol[] x)
 		{
 			ExpressionCompiler c = new ExpressionCompiler();
-			c.Add(this, typeof(TDelegate), x);
+			c.Add(this, typeof(TDelegate), null, x);
 			return (TDelegate) (object) c.CompileAll()[0];
 		}
 
@@ -310,14 +310,14 @@ namespace Reynolds.Expressions
 			return this.ordinal.CompareTo(other.ordinal);
 		}
 
-		public static Expression Create(object obj)
-		{
-			Expression e = obj as Expression;
-			if(e != null)
-				return e;
-			else
-				return Constant(obj);
-		}
+		//public static Expression Create(object obj)
+		//{
+		//   Expression e = obj as Expression;
+		//   if(e != null)
+		//      return e;
+		//   else
+		//      return Constant(obj);
+		//}
 
 		public static Expression Constant<T>(T obj)
 		{

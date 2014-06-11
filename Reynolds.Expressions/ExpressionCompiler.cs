@@ -100,6 +100,7 @@ namespace Reynolds.Expressions
 			public Expression Expression;
 			public Type DelegateType;
 			public Symbol[] Arguments;
+			public Action<Delegate> Callback;
 		}
 
 		List<CompilationInfo> jobs = new List<CompilationInfo>();
@@ -159,6 +160,8 @@ namespace Reynolds.Expressions
 				{
 					var mi = generatedClassType.GetMethod("f" + k.ToString());
 					result[k] = Delegate.CreateDelegate(jobs[k].DelegateType, mi);
+					if(jobs[k].Callback != null)
+						jobs[k].Callback(result[k]);
 				}
 
 				foreach(var kv in context.ObjectValues)
@@ -168,7 +171,12 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public void Add(Expression e, Type delegateType, params Symbol[] arguments)
+		public void Add<TDelegate>(Expression e, Action<TDelegate> callback, params Symbol[] arguments) where TDelegate : class
+		{
+			Add(e, typeof(TDelegate), result => callback(result as TDelegate), arguments);
+		}
+
+		public void Add(Expression e, Type delegateType, Action<Delegate> callback, params Symbol[] arguments)
 		{
 			if(!delegateType.IsSubclassOf(typeof(Delegate)))
 				throw new InvalidOperationException(delegateType.Name + " is not a delegate type");
@@ -180,7 +188,8 @@ namespace Reynolds.Expressions
 			{
 				Expression = e,
 				DelegateType = delegateType,
-				Arguments = arguments
+				Arguments = arguments,
+				Callback = callback
 			});
 		}
 	}
