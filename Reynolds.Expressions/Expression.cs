@@ -176,14 +176,6 @@ namespace Reynolds.Expressions
 			return false;
 		}
 
-		public Expression this[params object[] arguments]
-		{
-			get
-			{
-				return ApplicationExpression.Get(this, arguments.Select(a => Create(a)).ToArray());
-			}
-		}
-
 		public virtual Expression this[params Expression[] arguments]
 		{
 			get
@@ -327,14 +319,24 @@ namespace Reynolds.Expressions
 				return Constant(obj);
 		}
 
+		public static Expression Constant<T>(T obj)
+		{
+			return Constant(obj, typeof(T));
+		}
+
 		public static Expression Constant(object obj)
 		{
-			if(obj is double)
+			return Constant(obj, obj.GetType());
+		}
+
+		protected static Expression Constant(object obj, Type type)
+		{
+			if(type == typeof(double))
 				return (double) obj;
-			else if(obj is int)
+			else if(type == typeof(int))
 				return (int) obj;
 			else
-				return ConstantObjectExpression.Get(obj);
+				return ConstantObjectExpression.Get(obj, type);
 		}
 
 		public static Expression Field(string name)

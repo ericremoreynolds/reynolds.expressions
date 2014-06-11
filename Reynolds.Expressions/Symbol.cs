@@ -38,11 +38,6 @@ namespace Reynolds.Expressions
 			return new ExpressionSubstitution(symbol, expression);
 		}
 
-		public static ExpressionSubstitution operator |(Symbol symbol, object anything)
-		{
-			return new ExpressionSubstitution(symbol, Expression.Constant(anything));
-		}
-
 		public override string ToString()
 		{
 			return this.Name;

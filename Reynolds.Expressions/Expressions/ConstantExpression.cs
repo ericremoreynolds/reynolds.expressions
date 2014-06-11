@@ -155,22 +155,21 @@ namespace Reynolds.Expressions.Expressions
 		}
 	}
 
-	internal class ConstantObjectExpression : Expression
+	public class ConstantObjectExpression : Expression
 	{
 		protected object obj;
+		protected Type type;
 
-		static Dictionary<object, ConstantObjectExpression> cache = new Dictionary<object, ConstantObjectExpression>();
-		public static Expression Get(object obj)
+		static WeakLazyMapping<object, Type, ConstantObjectExpression> cache = new WeakLazyMapping<object, Type, ConstantObjectExpression>((o, t) => new ConstantObjectExpression(o, t));
+		public static Expression Get(object obj, Type type)
 		{
-			ConstantObjectExpression e;
-			if(!cache.TryGetValue(obj, out e))
-				cache[obj] = e = new ConstantObjectExpression(obj);
-			return e;
+			return cache[obj, type];
 		}
 
-		ConstantObjectExpression(object obj)
+		ConstantObjectExpression(object obj, Type type)
 		{
 			this.obj = obj;
+			this.type = type;
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -203,7 +202,7 @@ namespace Reynolds.Expressions.Expressions
 
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
-			context.Emit(obj);
+			context.Emit(obj, type);
 		}
 
 		public override dynamic Value

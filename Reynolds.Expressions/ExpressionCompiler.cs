@@ -6,6 +6,7 @@ using Microsoft.CSharp;
 using System.Reflection;
 using System.CodeDom;
 using System.CodeDom.Compiler;
+using Reynolds.Mappings;
 
 namespace Reynolds.Expressions
 {
@@ -16,15 +17,20 @@ namespace Reynolds.Expressions
 		ICodeGenerationContext Emit(double d);
 		ICodeGenerationContext Emit(int i);
 		ICodeGenerationContext Emit(string s);
-		ICodeGenerationContext Emit(object o);
+		ICodeGenerationContext Emit(object o, Type type);
 		ICodeGenerationContext Emit(Expression e, Expression[] args);
 	}
 
-	public class CodeGenerationContext : ICodeGenerationContext, IDisposable
+	internal class CodeGenerationContext : ICodeGenerationContext, IDisposable
 	{
+		public class ObjectValueInfo
+		{
+			public string Label;
+		}
+
 		CSharpCodeProvider provider = new CSharpCodeProvider();
 		StringBuilder sb = new StringBuilder();
-		public readonly Dictionary<object, string> ObjectValues = new Dictionary<object, string>();
+		public readonly DictionaryMapping<object, Type, ObjectValueInfo> ObjectValues = new DictionaryMapping<object, Type, ObjectValueInfo>();
 		public readonly HashSet<Assembly> Assemblies = new HashSet<Assembly>();
 
 		public ICodeGenerationContext Emit(Type type)
@@ -34,12 +40,15 @@ namespace Reynolds.Expressions
 			return this;
 		}
 
-		public ICodeGenerationContext Emit(object obj)
+		public ICodeGenerationContext Emit(object obj, Type type)
 		{
-			string label;
-			if(!ObjectValues.TryGetValue(obj, out label))
-				ObjectValues[obj] = label = "v" + ObjectValues.Count.ToString();
-			sb.Append(label);
+			ObjectValueInfo info;
+			if(!ObjectValues.TryGetValue(obj, type, out info))
+				ObjectValues[obj, type] = info = new ObjectValueInfo()
+				{
+					Label = "v" + ObjectValues.Count.ToString()
+				};
+			sb.Append(info.Label);
 			return this;
 		}
 
@@ -124,7 +133,7 @@ namespace Reynolds.Expressions
 				}
 
 				foreach(var kv in context.ObjectValues)
-					context.Emit("public static ").Emit(kv.Key.GetType()).Emit(" ").Emit(kv.Value).Emit(";");
+					context.Emit("public static ").Emit(kv.Key2).Emit(" ").Emit(kv.Value.Label).Emit(";");
 
 				context.Emit("}");
 
@@ -153,7 +162,7 @@ namespace Reynolds.Expressions
 				}
 
 				foreach(var kv in context.ObjectValues)
-					generatedClassType.InvokeMember(kv.Value, BindingFlags.Static | BindingFlags.Public | BindingFlags.SetField, null, null, new object[] { kv.Key });
+					generatedClassType.InvokeMember(kv.Value.Label, BindingFlags.Static | BindingFlags.Public | BindingFlags.SetField, null, null, new object[] { kv.Key1 });
 
 				return result;
 			}

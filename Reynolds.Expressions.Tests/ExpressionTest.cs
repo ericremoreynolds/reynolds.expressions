@@ -65,12 +65,12 @@ namespace Reynolds.Expressions.Tests
 
 			var e = 2 * x[y+1];
 
-			Assert.IsTrue(e[x | a, y | 0].NormalizesTo(222));
+			Assert.IsTrue(e[x | Expression.Constant(a), y | 0].NormalizesTo(222));
 
 			var cf = e.Compile<Func<int[], int, int>>(x, y);
 			Assert.AreEqual(246, cf(a, -1));
 
-			var cf2 = e[x | a].Compile<Func<int, int>>(y);
+			var cf2 = e[x | Expression.Constant(a)].Compile<Func<int, int>>(y);
 			Assert.AreEqual(246, cf2(-1));
 			Assert.AreEqual(222, cf2(0));
 		}
@@ -220,8 +220,8 @@ namespace Reynolds.Expressions.Tests
 
 			var c = new FieldTestClass();
 
-			Assert.IsTrue(e[x | c, y | Expression.Field("F")].NormalizesTo(Math.Exp(2 * c.F)));
-			Assert.IsTrue(e[x | c, y | Expression.Field("G")].NormalizesTo(Math.Exp(2 * c.G)));
+			Assert.IsTrue(e[x | Expression.Constant(c), y | Expression.Field("F")].NormalizesTo(Math.Exp(2 * c.F)));
+			Assert.IsTrue(e[x | Expression.Constant(c), y | Expression.Field("G")].NormalizesTo(Math.Exp(2 * c.G)));
 
 			var e2 = e[y | Expression.Field("F")];
 			var cf2 = e2.Compile<Func<FieldTestClass, double>>(x);
