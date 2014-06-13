@@ -11,22 +11,16 @@ namespace Reynolds.Expressions.Expressions
 		public readonly dynamic Coefficient;
 		public readonly Expression Expression;
 
-		//class Comparer : IEqualityComparer<CoefficientExpression>
-		//{
-		//   public bool Equals(CoefficientExpression x, CoefficientExpression y)
-		//   {
-		//      return x.Coefficient == y.Coefficient && x.Expression == y.Expression;
-		//   }
-
-		//   public int GetHashCode(CoefficientExpression obj)
-		//   {
-		//      return obj.GetHashCode();
-		//   }
-		//}
-
 		static WeakLazyMapping<object, Expression, CoefficientExpression> cache = new WeakLazyMapping<object, Expression, CoefficientExpression>((o, e) => new CoefficientExpression(o, e));
 		public static Expression Get(dynamic coefficient, Expression expression)
 		{
+			CoefficientExpression ce = expression as CoefficientExpression;
+			if(ce != null)
+			{
+				coefficient = coefficient * ce.Coefficient;
+				expression = ce.Expression;
+			}
+
 			if(coefficient == 1)
 				return expression;
 
@@ -80,12 +74,17 @@ namespace Reynolds.Expressions.Expressions
 			return Get(Coefficient, e);
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
+			if(context.EnclosingOperator > StringifyOperator.Product)
+				context.Emit("(");
 			if(Coefficient == -1)
-				return "(-" + Expression.ToString() + ")";
+				context.Emit("-");
 			else
-				return "(" + Coefficient.ToString() + " " + Expression.ToString() + ")";
+				context.Emit(Coefficient);
+			context.Emit(Expression, StringifyOperator.Product);
+			if(context.EnclosingOperator > StringifyOperator.Product)
+				context.Emit(")");
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

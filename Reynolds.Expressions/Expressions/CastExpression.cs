@@ -38,6 +38,11 @@ namespace Reynolds.Expressions.Expressions
 			return Get(Type, cache[Inner]);
 		}
 
+		public override void ToString(IStringifyContext context)
+		{
+			context.Emit("(").Emit(Type.FullName).Emit(")").Emit(Inner);
+		}
+
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
 			context.Emit("(").Emit(Type.FullName).Emit(")").Emit(Inner);

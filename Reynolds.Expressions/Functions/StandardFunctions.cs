@@ -26,9 +26,9 @@ namespace Reynolds.Expressions.Functions
 			return -Expression.Sin[x[0]];
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return "cos";
+			context.Emit("cos");
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)
@@ -57,10 +57,11 @@ namespace Reynolds.Expressions.Functions
 			return Expression.Cos[x[0]];
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return "sin";
+			context.Emit("sin");
 		}
+
 
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
@@ -88,11 +89,11 @@ namespace Reynolds.Expressions.Functions
 			return this[x];
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return "exp";
+			context.Emit("exp");
 		}
-
+		
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
 			context.Emit("Math.Exp");
@@ -119,11 +120,11 @@ namespace Reynolds.Expressions.Functions
 			return 1 / x[0];
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return "log";
+			context.Emit("log");
 		}
-
+		
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
 			context.Emit("Math.Log");
@@ -176,14 +177,18 @@ namespace Reynolds.Expressions.Functions
 				return base.Normalize(context, arguments);
 		}
 
-		public override string ToString(Expression[] x)
+		public override void ToString(IStringifyContext context, Expression[] x)
 		{
-			return x[0].ToString() + "^" + x[1].ToString();
+			if(context.EnclosingOperator > StringifyOperator.Exponent)
+				context.Emit("(");
+			context.Emit(x[0], StringifyOperator.Exponent).Emit("^").Emit(x[1], StringifyOperator.Exponent);
+			if(context.EnclosingOperator > StringifyOperator.Exponent)
+				context.Emit(")");
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return "pow";
+			context.Emit("pow");
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

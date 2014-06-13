@@ -6,7 +6,7 @@ using Reynolds.Mappings;
 
 namespace Reynolds.Expressions.Expressions
 {
-	internal class SumExpression : Expression
+	public class SumExpression : Expression
 	{
 		public readonly Expression[] Terms;
 
@@ -118,22 +118,22 @@ namespace Reynolds.Expressions.Expressions
 			return Get(ts.ToArray());
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			StringBuilder sb = new StringBuilder();
-			sb.Append("(");
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit("(");
 			bool first = true;
 			for(int k = 0; k < Terms.Length; k++)
 			{
 				CoefficientExpression ce = Terms[k] as CoefficientExpression;
-				if( /*!(ce != null && ce.Coefficient < 0.0)&& */ !(Terms[k].IsConstant && Terms[k].Value < 0))
+				if(!((ce != null && ce.Coefficient < 0.0) || (Terms[k].IsConstant && Terms[k].Value < 0)))
 					if(!first)
-						sb.Append("+");
-				sb.Append(Terms[k].ToString());
+						context.Emit("+");
+				context.Emit(Terms[k], StringifyOperator.Sum);
 				first = false;
 			}
-			sb.Append(")");
-			return sb.ToString();
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit(")");
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

@@ -69,9 +69,9 @@ namespace Reynolds.Expressions.Expressions
 			return context.Normalize(Applicand, dx);
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return Applicand.ToString(Arguments);
+			context.Emit(Applicand, Arguments);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

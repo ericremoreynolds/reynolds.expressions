@@ -6,7 +6,7 @@ using Reynolds.Mappings;
 
 namespace Reynolds.Expressions.Expressions
 {
-	internal class ProductExpression : Expression
+	public class ProductExpression : Expression
 	{
 		public readonly Expression[] Factors;
 
@@ -129,20 +129,20 @@ namespace Reynolds.Expressions.Expressions
 				return context.Normalize(CoefficientExpression.Get(coefficient, Get(fs.ToArray())));
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			StringBuilder sb = new StringBuilder();
-			sb.Append("(");
+			if(context.EnclosingOperator > StringifyOperator.Product)
+				context.Emit("(");
 			bool first = true;
 			for(int k = 0; k < Factors.Length; k++)
 			{
 				if(!first)
-					sb.Append(" ");
-				sb.Append(Factors[k].ToString());
+					context.Emit("*");
+				context.Emit(Factors[k], StringifyOperator.Product);
 				first = false;
 			}
-			sb.Append(")");
-			return sb.ToString();
+			if(context.EnclosingOperator > StringifyOperator.Product)
+				context.Emit(")");
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

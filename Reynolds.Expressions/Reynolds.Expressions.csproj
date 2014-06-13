@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ExpressionCompiler.cs" />
+    <Compile Include="ExpressionStringifier.cs" />
     <Compile Include="Expressions\ApplicationExpression.cs" />
     <Compile Include="Expressions\CastExpression.cs" />
     <Compile Include="Expressions\CoefficientExpression.cs" />

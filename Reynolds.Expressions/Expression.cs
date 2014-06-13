@@ -284,40 +284,38 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public virtual string ToString(Expression[] arguments)
+		public override string ToString()
 		{
-			StringBuilder sb = new StringBuilder();
-			sb.Append(this.ToString());
+			StringifyContext sc = new StringifyContext();
+			this.ToString(sc);
+			return sc.ToString();
+		}
+
+		public abstract void ToString(IStringifyContext context);
+		public virtual void ToString(IStringifyContext context, Expression[] arguments)
+		{
+			context.Emit(this, StringifyOperator.Application);
+
 			FieldExpression fe;
 			if(arguments.Length == 1 && null != (fe = arguments[0] as FieldExpression))
-				sb.Append(".").Append(fe.FieldName);
+				context.Emit(".").Emit(fe.FieldName);
 			else
 			{
-				sb.Append("[");
+				context.Emit("[");
 				for(int k = 0; k < arguments.Length; k++)
 				{
 					if(k > 0)
-						sb.Append(", ");
-					sb.Append(arguments[k].ToString());
+						context.Emit(", ");
+					context.Emit(arguments[k].ToString());
 				}
-				sb.Append("]");
+				context.Emit("]");
 			}
-			return sb.ToString();
 		}
 
 		public int CompareTo(Expression other)
 		{
 			return this.ordinal.CompareTo(other.ordinal);
 		}
-
-		//public static Expression Create(object obj)
-		//{
-		//   Expression e = obj as Expression;
-		//   if(e != null)
-		//      return e;
-		//   else
-		//      return Constant(obj);
-		//}
 
 		public static Expression Constant<T>(T obj)
 		{

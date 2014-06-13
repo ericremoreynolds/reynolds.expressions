@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Reynolds.Expressions.Expressions
 {
-	internal class FieldExpression : Expression
+	public class FieldExpression : Expression
 	{
 		public readonly string FieldName;
 
@@ -46,9 +46,9 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return FieldName;
+			context.Emit(FieldName);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

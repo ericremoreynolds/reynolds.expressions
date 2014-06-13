@@ -38,9 +38,9 @@ namespace Reynolds.Expressions
 			return new ExpressionSubstitution(symbol, expression);
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return this.Name;
+			context.Emit(this.Name);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

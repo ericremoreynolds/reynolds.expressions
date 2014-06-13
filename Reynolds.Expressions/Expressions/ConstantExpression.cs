@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace Reynolds.Expressions.Expressions
 {
-	internal class ConstantDoubleExpression : Expression
+	public class ConstantDoubleExpression : Expression
 	{
 		static WeakLazyMapping<double, ConstantDoubleExpression> constants = new WeakLazyMapping<double, ConstantDoubleExpression>(value => new ConstantDoubleExpression(value));
 
@@ -18,7 +18,7 @@ namespace Reynolds.Expressions.Expressions
 
 		double value;
 
-		public ConstantDoubleExpression(double value)
+		protected ConstantDoubleExpression(double value)
 		{
 			this.value = value;
 		}
@@ -70,9 +70,9 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return value.ToString();
+			context.Emit(value);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)
@@ -81,7 +81,7 @@ namespace Reynolds.Expressions.Expressions
 		}
 	}
 
-	internal class ConstantIntExpression : Expression
+	public class ConstantIntExpression : Expression
 	{
 		static WeakLazyMapping<int, ConstantIntExpression> constants = new WeakLazyMapping<int, ConstantIntExpression>(value => new ConstantIntExpression(value));
 
@@ -92,7 +92,7 @@ namespace Reynolds.Expressions.Expressions
 
 		int value;
 
-		public ConstantIntExpression(int value)
+		protected ConstantIntExpression(int value)
 		{
 			this.value = value;
 		}
@@ -144,9 +144,9 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return value.ToString();
+			context.Emit(value);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)
@@ -195,9 +195,9 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override string ToString()
+		public override void ToString(IStringifyContext context)
 		{
-			return obj.ToString();
+			context.Emit(obj);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context)

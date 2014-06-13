@@ -54,9 +54,16 @@ namespace Reynolds.Expressions
 			context.Emit(")");
 		}
 
-		public override string ToString(Expression[] arguments)
+		public override void ToString(IStringifyContext context, Expression[] arguments)
 		{
-			return this.ToString() + "[" + string.Join(", ", arguments.Select(a => a.ToString()).ToArray()) + "]";
+			context.Emit(this, StringifyOperator.Application).Emit("[");
+			for(int k = 0; k < arguments.Length; k++)
+			{
+				if(k > 0)
+					context.Emit(", ");
+				context.Emit(arguments[k]);
+			}
+			context.Emit("]");
 		}
 
 		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
