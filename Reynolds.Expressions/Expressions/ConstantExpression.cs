@@ -227,10 +227,11 @@ namespace Reynolds.Expressions.Expressions
 					if(type.IsArray)
 					{
 						var arr = obj as Array;
-						return Expression.Constant(arr.GetValue(arguments.Select(x => Convert.ToInt32((object) x.Value)).ToArray()));
+						return Expression.Constant(arr.GetValue(arguments.Select(x => Convert.ToInt32((object) x.Value)).ToArray()), type.GetElementType());
 					}
 					else
 					{
+						// TODO: proper type management
 						return Expression.Constant(type.InvokeMember(
 							"",
 							BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,

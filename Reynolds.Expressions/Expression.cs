@@ -324,13 +324,11 @@ namespace Reynolds.Expressions
 			return Constant(obj, typeof(T));
 		}
 
-		public static Expression Constant(object obj)
+		public static Expression Constant(object obj, Type type = null)
 		{
-			return Constant(obj, obj.GetType());
-		}
+			if(type == null)
+				type = obj.GetType();
 
-		protected static Expression Constant(object obj, Type type)
-		{
 			if(type == typeof(double))
 				return (double) obj;
 			else if(type == typeof(int))
