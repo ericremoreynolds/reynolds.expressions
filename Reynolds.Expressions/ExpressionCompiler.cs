@@ -21,80 +21,174 @@ namespace Reynolds.Expressions
 		ICodeGenerationContext Emit(Expression e, Expression[] args);
 	}
 
-	internal class CodeGenerationContext : ICodeGenerationContext, IDisposable
-	{
-		public class ObjectValueInfo
-		{
-			public string Label;
-		}
-
-		CSharpCodeProvider provider = new CSharpCodeProvider();
-		StringBuilder sb = new StringBuilder();
-		public readonly DictionaryMapping<object, Type, ObjectValueInfo> ObjectValues = new DictionaryMapping<object, Type, ObjectValueInfo>();
-		public readonly HashSet<Assembly> Assemblies = new HashSet<Assembly>();
-
-		public ICodeGenerationContext Emit(Type type)
-		{
-			Assemblies.Add(type.Assembly);
-			sb.Append(provider.GetTypeOutput(new CodeTypeReference(type)));
-			return this;
-		}
-
-		public ICodeGenerationContext Emit(object obj, Type type)
-		{
-			ObjectValueInfo info;
-			if(!ObjectValues.TryGetValue(obj, type, out info))
-				ObjectValues[obj, type] = info = new ObjectValueInfo()
-				{
-					Label = "v" + ObjectValues.Count.ToString()
-				};
-			sb.Append(info.Label);
-			return this;
-		}
-
-		public ICodeGenerationContext Emit(Expression e, Expression[] args)
-		{
-			e.GenerateCode(this, args);
-			return this;
-		}
-
-		public override string ToString()
-		{
-			return sb.ToString();
-		}
-
-		void IDisposable.Dispose()
-		{
-			provider.Dispose();
-		}
-
-		public ICodeGenerationContext Emit(Expression e)
-		{
-			e.GenerateCode(this);
-			return this;
-		}
-
-		public ICodeGenerationContext Emit(double d)
-		{
-			sb.Append(d);
-			return this;
-		}
-
-		public ICodeGenerationContext Emit(int i)
-		{
-			sb.Append(i);
-			return this;
-		}
-
-		public ICodeGenerationContext Emit(string s)
-		{
-			sb.Append(s);
-			return this;
-		}
-	}
-
 	public class ExpressionCompiler
 	{
+		class CodeGenerationContext : ICodeGenerationContext, IDisposable
+		{
+			public class ObjectValueInfo
+			{
+				public string Label;
+			}
+
+			CSharpCodeProvider provider = new CSharpCodeProvider();
+			StringBuilder sb = new StringBuilder();
+			public readonly DictionaryMapping<object, Type, ObjectValueInfo> ObjectValues = new DictionaryMapping<object, Type, ObjectValueInfo>();
+			public readonly HashSet<Assembly> Assemblies = new HashSet<Assembly>();
+
+			public ICodeGenerationContext Emit(Type type)
+			{
+				Assemblies.Add(type.Assembly);
+				sb.Append(provider.GetTypeOutput(new CodeTypeReference(type)));
+				return this;
+			}
+
+			public readonly Dictionary<Expression, string> CachedExpressions = new Dictionary<Expression, string>();
+
+			public ICodeGenerationContext Emit(object obj, Type type)
+			{
+				ObjectValueInfo info;
+				if(!ObjectValues.TryGetValue(obj, type, out info))
+					ObjectValues[obj, type] = info = new ObjectValueInfo()
+					{
+						Label = "v" + ObjectValues.Count.ToString()
+					};
+				sb.Append(info.Label);
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(Expression e, Expression[] args)
+			{
+				e.GenerateCode(this, args);
+				return this;
+			}
+
+			public override string ToString()
+			{
+				return sb.ToString();
+			}
+
+			void IDisposable.Dispose()
+			{
+				provider.Dispose();
+			}
+
+			public ICodeGenerationContext Emit(Expression e)
+			{
+				string label;
+				if(this.CachedExpressions.TryGetValue(e, out label))
+					sb.Append(label);
+				else
+					e.GenerateCode(this);
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(double d)
+			{
+				sb.Append(d);
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(int i)
+			{
+				sb.Append(i);
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(string s)
+			{
+				sb.Append(s);
+				return this;
+			}
+		}
+
+		class ExpressionInstanceCounter : ICodeGenerationContext
+		{
+			public class ExpressionCounter
+			{
+				public int Index;
+				public int Count;
+				public int Priority;
+				public Expression Expression;
+			}
+
+			Dictionary<Expression, ExpressionCounter> counters = new Dictionary<Expression, ExpressionCounter>();
+
+			public List<ExpressionCounter> GetInfos()
+			{
+				var list = new List<ExpressionCounter>();
+				foreach(var ec in counters.Values)
+					if(ec.Count > 1 && !ec.Expression.IsConstant)
+						list.Add(ec);
+
+				list.Sort((a, b) => -a.Priority.CompareTo(b.Priority));
+
+				return list;
+			}
+
+			int currentPriority = 0;
+			int currentIndex = 0;
+			int countInc = 1;
+
+			public ExpressionInstanceCounter()
+			{
+			}
+
+			public ICodeGenerationContext Emit(Expression e)
+			{
+				ExpressionCounter ec;
+				var oldCountInc = countInc;
+				countInc = 0;
+				if(!counters.TryGetValue(e, out ec))
+				{
+					counters[e] = ec = new ExpressionCounter()
+					{
+						Index = currentIndex++,
+						Expression = e
+					};
+					countInc = 1;
+				}
+				ec.Count += oldCountInc;
+				ec.Priority = Math.Max(currentPriority, ec.Priority);
+				var oldPriority = currentPriority;
+				currentPriority = ec.Priority + 1;
+				e.GenerateCode(this);
+				currentPriority = oldPriority;
+				countInc = oldCountInc;
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(Type t)
+			{
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(double d)
+			{
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(int i)
+			{
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(string s)
+			{
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(object o, Type type)
+			{
+				return this;
+			}
+
+			public ICodeGenerationContext Emit(Expression e, Expression[] args)
+			{
+				e.GenerateCode(this, args);
+				return this;
+			}
+		}
+
 		class CompilationInfo
 		{
 			public Expression Expression;
@@ -109,8 +203,8 @@ namespace Reynolds.Expressions
 		{
 			using(var context = new CodeGenerationContext())
 			{
-				context.Emit("using System;");
-				context.Emit("public static class GeneratedFunction {");
+				context.Emit("using System;\n");
+				context.Emit("public static class GeneratedFunction {\n");
 
 				for(int k = 0; k < jobs.Count; k++)
 				{
@@ -130,11 +224,23 @@ namespace Reynolds.Expressions
 							context.Emit(", ");
 						context.Emit(args[j].ParameterType).Emit(" x").Emit(j);
 					}
-					context.Emit(") { return ").Emit(e).Emit("; }");
+					context.Emit(")\n{\n ");
+
+					ExpressionInstanceCounter counters = new ExpressionInstanceCounter();
+
+					e.GenerateCode(counters);
+					foreach(var ec in counters.GetInfos())
+					{
+						string label = "z" + ec.Index.ToString();
+						context.Emit("var ").Emit(label).Emit(" = ").Emit(ec.Expression).Emit(";\n");
+						context.CachedExpressions.Add(ec.Expression, label);
+					}
+
+					context.Emit("return ").Emit(e).Emit(";\n }\n");
 				}
 
 				foreach(var kv in context.ObjectValues)
-					context.Emit("public static ").Emit(kv.Key2).Emit(" ").Emit(kv.Value.Label).Emit(";");
+					context.Emit("public static ").Emit(kv.Key2).Emit(" ").Emit(kv.Value.Label).Emit(";\n");
 
 				context.Emit("}");
 

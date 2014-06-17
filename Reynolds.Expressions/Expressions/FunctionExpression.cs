@@ -14,6 +14,14 @@ namespace Reynolds.Expressions
 			get;
 		}
 
+		public override bool IsConstant
+		{
+			get
+			{
+				return true;
+			}
+		}
+
 		public abstract double Evaluate(params double[] x);
 
 		public override Expression this[params Expression[] arguments]
@@ -35,11 +43,6 @@ namespace Reynolds.Expressions
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
 			throw new NotImplementedException();
-		}
-
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			return this;
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
@@ -66,12 +69,17 @@ namespace Reynolds.Expressions
 			context.Emit("]");
 		}
 
-		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
+		public override Expression Normalize(Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
 				return Evaluate((from x in arguments select Convert.ToDouble((object) x.Value)).ToArray());
 			else
-				return this[arguments];
+				return base.Normalize(arguments);
+		}
+
+		public override bool GetIsScalar(Expression[] arguments)
+		{
+			return arguments.All(e => e.IsScalar);
 		}
 	}
 }

@@ -14,32 +14,8 @@ namespace Reynolds.Expressions
 {
 	public delegate double CompiledExpression(params double[] x);
 
-	public interface INormalizeContext
-	{
-		Expression Normalize(Expression e);
-		Expression Normalize(Expression e, Expression[] arguments);
-	}
-
 	public abstract class Expression : IComparable<Expression>
 	{
-		protected class NormalizeContext : INormalizeContext
-		{
-			Dictionary<Expression, Expression> cache = new Dictionary<Expression, Expression>();
-
-			public Expression Normalize(Expression e)
-			{
-				Expression f;
-				if(!cache.TryGetValue(e, out f))
-					cache[e] = f = e.Normalize(this);
-				return f;
-			}
-
-			public Expression Normalize(Expression e, Expression[] arguments)
-			{
-				return e.Normalize(this, arguments);
-			}
-		}
-
 		private static int ordinalCounter = Int32.MinValue;
 		private int ordinal;
 
@@ -77,26 +53,28 @@ namespace Reynolds.Expressions
 		}
 		protected abstract Expression Derive(VisitCache cache, Expression s);
 
-		public Expression Normalized
+		public virtual Expression Normalize(Expression[] arguments)
 		{
-			get
-			{
-				NormalizeContext context = new NormalizeContext();
-				return context.Normalize(this);
-			}
-		}
-		protected abstract Expression Normalize(INormalizeContext context);
-		protected virtual Expression Normalize(INormalizeContext context, Expression[] arguments)
-		{
-			return this[arguments];
-		}
-		public static Expression[] Normalize(params Expression[] expressions)
-		{
-			NormalizeContext context = new NormalizeContext();
-			return expressions.Select(e => context.Normalize(e)).ToArray();
+			return null;
 		}
 
 		protected abstract Expression Substitute(VisitCache cache);
+
+		public virtual bool IsScalar
+		{
+			get
+			{
+				return false;
+			}
+		}
+
+		public virtual bool IsNegative
+		{
+			get
+			{
+				return false;
+			}
+		}
 
 		public virtual bool IsConstant
 		{
@@ -147,7 +125,7 @@ namespace Reynolds.Expressions
 
 		public static Expression operator -(Expression f, Expression g)
 		{
-			return SumExpression.Get(f, CoefficientExpression.Get(-1, g));
+			return SumExpression.Get(f, -1*g);
 		}
 
 		public static Expression operator *(Expression f, Expression g)
@@ -162,18 +140,7 @@ namespace Reynolds.Expressions
 
 		public static Expression operator -(Expression f)
 		{
-			return CoefficientExpression.Get(-1, f);
-		}
-
-		public bool NormalizesTo(object obj)
-		{
-			var n = this.Normalized;
-			var other = obj as Expression;
-			if(other != null)
-				return other.Normalized == n;
-			if(n.IsConstant)
-				return n.Value == (dynamic) obj;
-			return false;
+			return -1 * f;//	CoefficientExpression.Get(-1, f);
 		}
 
 		public virtual Expression this[params Expression[] arguments]
@@ -198,48 +165,6 @@ namespace Reynolds.Expressions
 		public static readonly FunctionExpression Sin = new SinFunction();
 		public static readonly FunctionExpression Cos = new CosFunction();
 		
-		//public static MethodInfo[] Compile(Expression[] es, Symbol[] x, Type[] types)
-		//{
-		//   ExpressionSubstitution[] subs = new ExpressionSubstitution[x.Length];
-		//   for(int k = 0; k < x.Length; k++)
-		//      subs[k] = x[k] | new Symbol("x" + k.ToString());
-		//   es = (from e in es select e.Substitute(subs)).ToArray();
-
-		//   StringBuilder sb = new StringBuilder();
-		//   sb.Append("using System;");
-		//   sb.Append("public static class GeneratedFunction {");
-		//   for(int k = 0; k < es.Length; k++)
-		//   {
-		//      sb.Append("public static double f" + k.ToString() + "(" + string.Join(", ", (from i in Enumerable.Range(0, x.Length) select types[i].FullName + " x" + i.ToString())) + ") { return " + es[k].ToCode() + "; }");
-		//   }
-		//   sb.Append("}");
-		//   string code = sb.ToString();
-
-		//   CompilerParameters parameters = new CompilerParameters();
-		//   parameters.GenerateInMemory = true;
-		//   parameters.TreatWarningsAsErrors = false;
-		//   parameters.GenerateExecutable = false;
-		//   parameters.CompilerOptions = "/optimize";
-		//   parameters.IncludeDebugInformation = false;
-		//   parameters.ReferencedAssemblies.Add("System.dll");
-		//   foreach(var typ in types)
-		//      parameters.ReferencedAssemblies.Add(typ.Assembly.Location);
-
-		//   CompilerResults results = new CSharpCodeProvider().CompileAssemblyFromSource(parameters, new string[] { code });
-
-		//   if(results.Errors.HasErrors)
-		//      throw new Exception("Compile error: " + results.Errors[0].ToString()); //, results.Errors);
-
-		//   MethodInfo[] ces = new MethodInfo[es.Length];
-		//   for(int k = 0; k < es.Length; k++)
-		//   {
-		//      var mi = results.CompiledAssembly.GetModules()[0].GetType("GeneratedFunction").GetMethod("f" + k.ToString());
-		//      ces[k] = mi;
-		//   }
-
-		//   return ces;
-		//}
-
 		public TDelegate Compile<TDelegate>(params Symbol[] x)
 		{
 			ExpressionCompiler c = new ExpressionCompiler();
@@ -346,6 +271,11 @@ namespace Reynolds.Expressions
 		}
 
 		public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
+		{
+			throw new NotImplementedException();
+		}
+
+		public virtual bool GetIsScalar(Expression[] arguments)
 		{
 			throw new NotImplementedException();
 		}

@@ -28,11 +28,6 @@ namespace Reynolds.Expressions.Expressions
 			throw new NotImplementedException();
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			return Get(Type, context.Normalize(Inner));
-		}
-
 		protected override Expression Substitute(VisitCache cache)
 		{
 			return Get(Type, cache[Inner]);

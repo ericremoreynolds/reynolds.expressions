@@ -10,9 +10,59 @@ namespace Reynolds.Expressions.Expressions
 	{
 		public readonly Expression[] Terms;
 
-		static Dictionary<Expression[], SumExpression> sumExpressions = new Dictionary<Expression[], SumExpression>(ReferenceTypeArrayEqualityComparer<Expression>.Instance);
+		static WeakLazyMapping<Expression[], SumExpression> sumExpressions = new WeakLazyMapping<Expression[], SumExpression>(es => new SumExpression(es), null, ReferenceTypeArrayEqualityComparer<Expression>.Instance);
+
 		static internal Expression Get(params Expression[] terms)
 		{
+			Dictionary<Expression, dynamic> newTerms = new Dictionary<Expression, dynamic>();
+			dynamic constant = 0;
+
+			Action<Expression> addTerm = delegate(Expression e)
+			{
+				if(e.IsConstant)
+					constant += e.Value;
+				else
+				{
+					ProductExpression pe = e as ProductExpression;
+					dynamic coeff = 1;
+					if(null != pe && pe.Factors[0].IsConstant && pe.Factors[0].IsScalar)
+					{
+						coeff = pe.Factors[0].Value;
+						e = ProductExpression.Get(pe.Factors.Skip(1).ToArray());
+					}
+
+					dynamic val;
+					if(!newTerms.TryGetValue(e, out val))
+						val = 0;
+					val += coeff;
+					if(val == 0)
+						newTerms.Remove(e);
+					else
+						newTerms[e] = val;
+				}
+			};
+
+			foreach(var t in terms)
+			{
+				var sf = t;
+				var sumEx = sf as SumExpression;
+				if(sumEx != null)
+				{
+					foreach(var st in sumEx.Terms)
+						addTerm(st);
+				}
+				else
+					addTerm(sf);
+			}
+
+			List<Expression> ts = new List<Expression>();
+			if(constant != 0)
+				ts.Add(constant);
+			foreach(var kv in newTerms)
+				ts.Add(kv.Value * kv.Key);
+
+			terms = ts.ToArray();
+
 			if(terms.Length == 0)
 				return 0;
 
@@ -20,15 +70,22 @@ namespace Reynolds.Expressions.Expressions
 				return terms[0];
 
 			Array.Sort<Expression>(terms);
-			SumExpression e;
-			if(!sumExpressions.TryGetValue(terms, out e))
-				sumExpressions[terms] = e = new SumExpression(terms);
-			return e;
+			return sumExpressions[terms];
+		}
+
+		bool isScalar;
+		public override bool IsScalar
+		{
+			get
+			{
+				return isScalar;
+			}
 		}
 
 		protected SumExpression(Expression[] terms)
 		{
 			this.Terms = terms;
+			isScalar = terms.All(e => e.IsScalar);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -57,67 +114,6 @@ namespace Reynolds.Expressions.Expressions
 			return SumExpression.Get(terms.ToArray());
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			Dictionary<Expression, dynamic> newTerms = new Dictionary<Expression, dynamic>();
-			dynamic constant = 0;
-
-			Action<Expression> addTerm = delegate(Expression e)
-			{
-				if(e.IsConstant)
-					constant += e.Value;
-				else
-				{
-					CoefficientExpression ce = e as CoefficientExpression;
-					if(null != ce)
-					{
-						dynamic val;
-						if(!newTerms.TryGetValue(ce.Expression, out val))
-							val = 0;
-						val += ce.Coefficient;
-						if(val == 0)
-							newTerms.Remove(ce.Expression);
-						else
-							newTerms[ce.Expression] = val;
-					}
-					else
-					{
-						dynamic val;
-						if(!newTerms.TryGetValue(e, out val))
-							val = 0;
-						val += 1;
-						if(val == 0)
-							newTerms.Remove(e);
-						else
-							newTerms[e] = val;
-					}
-				}
-			};
-
-			foreach(var t in Terms)
-			{
-				var sf = context.Normalize(t);
-				var sumEx = sf as SumExpression;
-				if(sumEx != null)
-				{
-					foreach(var st in sumEx.Terms)
-						addTerm(st);
-				}
-				else
-					addTerm(sf);
-			}
-
-			List<Expression> ts = new List<Expression>();
-			if(constant != 0)
-				ts.Add(constant);
-			foreach(var kv in newTerms)
-				if(kv.Value != 1)
-					ts.Add(CoefficientExpression.Get(kv.Value, kv.Key));
-				else
-					ts.Add(kv.Key);
-			return Get(ts.ToArray());
-		}
-
 		public override void ToString(IStringifyContext context)
 		{
 			if(context.EnclosingOperator > StringifyOperator.Sum)
@@ -125,8 +121,8 @@ namespace Reynolds.Expressions.Expressions
 			bool first = true;
 			for(int k = 0; k < Terms.Length; k++)
 			{
-				CoefficientExpression ce = Terms[k] as CoefficientExpression;
-				if(!((ce != null && ce.Coefficient < 0.0) || (Terms[k].IsConstant && Terms[k].Value < 0)))
+				ProductExpression pe = Terms[k] as ProductExpression;
+				if(!(pe != null && pe.Factors[0].IsNegative) || Terms[k].IsNegative)
 					if(!first)
 						context.Emit("+");
 				context.Emit(Terms[k], StringifyOperator.Sum);
@@ -142,7 +138,7 @@ namespace Reynolds.Expressions.Expressions
 			bool first = true;
 			for(int k = 0; k < Terms.Length; k++)
 			{
-				CoefficientExpression ce = Terms[k] as CoefficientExpression;
+				//CoefficientExpression ce = Terms[k] as CoefficientExpression;
 				if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0))
 					if(!first)
 						context.Emit("+");

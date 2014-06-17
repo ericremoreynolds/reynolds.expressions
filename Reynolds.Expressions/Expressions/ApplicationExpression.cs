@@ -11,6 +11,15 @@ namespace Reynolds.Expressions.Expressions
 		public Expression Applicand;
 		public readonly Expression[] Arguments;
 
+		bool isScalar;
+		public override bool IsScalar
+		{
+			get
+			{
+				return isScalar;
+			}
+		}
+
 		static WeakLazyMapping<Expression, Expression[], ApplicationExpression> instances = new WeakLazyMapping<Expression, Expression[], ApplicationExpression>(
 			(obj, indices) => new ApplicationExpression(obj, indices),
 			null,
@@ -22,6 +31,7 @@ namespace Reynolds.Expressions.Expressions
 		{
 			this.Applicand = f;
 			this.Arguments = x;
+			isScalar = f.GetIsScalar(x);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -60,15 +70,6 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			Expression[] dx = new Expression[Arguments.Length];
-			for(int k = 0; k < Arguments.Length; k++)
-				dx[k] = context.Normalize(Arguments[k]);
-
-			return context.Normalize(Applicand, dx);
-		}
-
 		public override void ToString(IStringifyContext context)
 		{
 			context.Emit(Applicand, Arguments);
@@ -81,7 +82,11 @@ namespace Reynolds.Expressions.Expressions
 
 		public static Expression Get(Expression applicand, Expression[] arguments)
 		{
-			return instances[applicand, arguments];
+			var alt = applicand.Normalize(arguments);
+			if(alt == null)
+				return instances[applicand, arguments];
+			else
+				return alt;
 		}
 	}
 }

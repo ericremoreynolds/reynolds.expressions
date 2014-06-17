@@ -33,11 +33,6 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			return this;
-		}
-
 		public override bool IsConstant
 		{
 			get

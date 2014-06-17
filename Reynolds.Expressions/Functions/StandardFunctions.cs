@@ -162,19 +162,16 @@ namespace Reynolds.Expressions.Functions
 				base.GenerateCode(context, x);
 		}
 
-		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
+		public override Expression Normalize(Expression[] arguments)
 		{
 			ApplicationExpression ae;
 			ProductExpression pe;
-			CoefficientExpression ce;
 			if(null != (pe = arguments[0] as ProductExpression))
-				return context.Normalize(ProductExpression.Get((from f in pe.Factors select Expression.Pow[f, arguments[1]]).ToArray()));
-			else if(null != (ce = arguments[0] as CoefficientExpression))
-				return context.Normalize(ProductExpression.Get(Expression.Pow[ce.Coefficient, arguments[1]], Expression.Pow[ce.Expression, arguments[1]]));
+				return ProductExpression.Get((from f in pe.Factors select Expression.Pow[f, arguments[1]]).ToArray());
 			else if(null != (ae = arguments[0] as ApplicationExpression) && ae.Applicand == Expression.Pow)
-				return context.Normalize(Expression.Pow[ae.Arguments[0], ae.Arguments[1] * arguments[1]]);
+				return Expression.Pow[ae.Arguments[0], ae.Arguments[1] * arguments[1]];
 			else
-				return base.Normalize(context, arguments);
+				return base.Normalize(arguments);
 		}
 
 		public override void ToString(IStringifyContext context, Expression[] x)

@@ -33,9 +33,12 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
+		public override bool IsScalar
 		{
-			return this;
+			get
+			{
+				return true;
+			}
 		}
 
 		public override bool IsConstant
@@ -43,6 +46,14 @@ namespace Reynolds.Expressions.Expressions
 			get
 			{
 				return true;
+			}
+		}
+
+		public override bool IsNegative
+		{
+			get
+			{
+				return value < 0.0;
 			}
 		}
 
@@ -107,9 +118,12 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
+		public override bool IsScalar
 		{
-			return this;
+			get
+			{
+				return true;
+			}
 		}
 
 		public override bool IsConstant
@@ -117,6 +131,14 @@ namespace Reynolds.Expressions.Expressions
 			get
 			{
 				return true;
+			}
+		}
+
+		public override bool IsNegative
+		{
+			get
+			{
+				return value < 0;
 			}
 		}
 
@@ -182,11 +204,6 @@ namespace Reynolds.Expressions.Expressions
 			return 0;
 		}
 
-		protected override Expression Normalize(INormalizeContext context)
-		{
-			return this;
-		}
-
 		public override bool IsConstant
 		{
 			get
@@ -213,14 +230,20 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		protected override Expression Normalize(INormalizeContext context, Expression[] arguments)
+		public override Expression Normalize(Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
 			{
 				FieldExpression fie;
 				if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
+				{
+					FieldInfo fi = obj.GetType().GetField(fie.FieldName);
+					PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
+					Type t = fi == null ? pi.PropertyType : fi.FieldType;
+
 					//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
-					return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null));
+					return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null), t);
+				}
 				else
 				{
 					Type type = obj.GetType();
@@ -242,9 +265,41 @@ namespace Reynolds.Expressions.Expressions
 					}
 				}
 			}
+
+			return base.Normalize(arguments);
+		}
+
+		public override bool GetIsScalar(Expression[] arguments)
+		{
+			FieldExpression fie;
+			if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
+			{
+				FieldInfo fi = obj.GetType().GetField(fie.FieldName);
+				PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
+				Type t = fi == null ? pi.PropertyType : fi.FieldType;
+				return t == typeof(int) || t == typeof(double);
+			}
 			else
 			{
-				return this[arguments];
+				Type type = obj.GetType();
+				if(type.IsArray)
+				{
+					var arr = obj as Array;
+					var t = obj.GetType().GetElementType();
+					return t == typeof(int) || t == typeof(double);
+				}
+				else
+				{
+					// TODO: proper type management
+					return false;
+					//return Expression.Constant(type.InvokeMember(
+					//   "",
+					//   BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
+					//   null,
+					//   obj,
+					//   arguments.Select(x => (object) x.Value).ToArray()
+					//   ));
+				}
 			}
 		}
 	}
