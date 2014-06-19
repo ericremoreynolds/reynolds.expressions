@@ -14,7 +14,7 @@ namespace Reynolds.Expressions
 {
 	public delegate double CompiledExpression(params double[] x);
 
-	public abstract class Expression : IComparable<Expression>
+	public abstract class Expression : IComparable<Expression>, IEnumerable<Expression>
 	{
 		private static int ordinalCounter = Int32.MinValue;
 		private int ordinal;
@@ -53,20 +53,20 @@ namespace Reynolds.Expressions
 		}
 		protected abstract Expression Derive(VisitCache cache, Expression s);
 
-		public virtual Expression Normalize(Expression[] arguments)
+		public Domain Domain
 		{
-			return null;
+			get;
+			protected set;
+		}
+
+		public static readonly Expression[] EmptyArguments = new Expression[0];
+
+		public virtual Expression Apply(Expression argument)
+		{
+			return ApplicationExpression.Get(this, argument);
 		}
 
 		protected abstract Expression Substitute(VisitCache cache);
-
-		public virtual bool IsScalar
-		{
-			get
-			{
-				return false;
-			}
-		}
 
 		public virtual bool IsNegative
 		{
@@ -130,24 +130,33 @@ namespace Reynolds.Expressions
 
 		public static Expression operator *(Expression f, Expression g)
 		{
-			return ProductExpression.Get(f, g);
+			return f[g];
 		}
 
 		public static Expression operator /(Expression f, Expression g)
 		{
-			return ProductExpression.Get(f, Expression.Pow[g, -1]);
+			return f[Expression.Pow[g, -1]];
 		}
 
 		public static Expression operator -(Expression f)
 		{
-			return -1 * f;//	CoefficientExpression.Get(-1, f);
+			return Expression.Constant(-1)[f];
 		}
+
+		//public virtual Expression this[Expression argument]
+		//{
+		//   get
+		//   {
+		//      return ApplicationExpression.Get(this, argument);
+		//   }
+		//}
 
 		public virtual Expression this[params Expression[] arguments]
 		{
 			get
 			{
-				return ApplicationExpression.Get(this, arguments);
+				//return this[TupleExpression.Get(arguments)];
+				return this.Apply(TupleExpression.Get(arguments));
 			}
 		}
 
@@ -165,47 +174,38 @@ namespace Reynolds.Expressions
 		public static readonly FunctionExpression Sin = new SinFunction();
 		public static readonly FunctionExpression Cos = new CosFunction();
 		
-		public TDelegate Compile<TDelegate>(params Symbol[] x)
+		public TDelegate Compile<TDelegate>(params SymbolExpression[] x)
 		{
 			ExpressionCompiler c = new ExpressionCompiler();
 			c.Add(this, typeof(TDelegate), null, x);
 			return (TDelegate) (object) c.CompileAll()[0];
 		}
 
-		public Func<double, double> Compile(Symbol x0)
-		{
-			return Compile<Func<double, double>>(x0);
-		}
-
-		public Func<double, double, double> Compile(Symbol x0, Symbol x1)
-		{
-			return Compile<Func<double, double, double>>(x0, x1);
-		}
-
-
-		public Func<double, double, double, double> Compile(Symbol x0, Symbol x1, Symbol x2)
-		{
-			return Compile<Func<double, double, double, double>>(x0, x1, x2);
-		}
-
-		public abstract void GenerateCode(ICodeGenerationContext context);
 		public virtual void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
+			if(arguments.Length == 0)
+				throw new NotImplementedException();
+
 			context.Emit(this);
 
-			FieldExpression fe;
-			if(arguments.Length == 1 && null != (fe = arguments[0] as FieldExpression))
-				context.Emit(".").Emit(fe.FieldName);
-			else
+			foreach(var arg in arguments)
 			{
-				context.Emit("[");
-				for(int k = 0; k < arguments.Length; k++)
+				FieldExpression fe;
+				if(null != (fe = arg as FieldExpression))
+					context.Emit(".").Emit(fe.FieldName);
+				else
 				{
-					if(k > 0)
-						context.Emit(", ");
-					context.Emit(arguments[k]);
+					bool first = true;
+					context.Emit("[");
+					foreach(var el in arg)
+					{
+						if(!first)
+							context.Emit(", ");
+						context.Emit(el);
+						first = false;
+					}
+					context.Emit("]");
 				}
-				context.Emit("]");
 			}
 		}
 
@@ -265,19 +265,42 @@ namespace Reynolds.Expressions
 			return FieldExpression.Get(name);
 		}
 
-		public static Expression Cast<T>(Expression e)
+		//public static Expression Cast<T>(Expression e)
+		//{
+		//   return CastExpression.Get(typeof(T), e);
+		//}
+
+		public static SymbolExpression Symbol(string name, Domain domain)
 		{
-			return CastExpression.Get(typeof(T), e);
+			return SymbolExpression.Get(name, domain);
 		}
 
-		public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
+		public static SymbolExpression Symbol<T>(string name)
 		{
-			throw new NotImplementedException();
+			return Symbol(name, Domain.Get(typeof(T)));
 		}
 
-		public virtual bool GetIsScalar(Expression[] arguments)
+		//public virtual Expression GetPartialDerivative(int index, Expression[] arguments)
+		//{
+		//   throw new NotImplementedException();
+		//}
+
+		public virtual int Count
 		{
-			throw new NotImplementedException();
+			get
+			{
+				return 1;
+			}
+		}
+
+		public virtual IEnumerator<Expression> GetEnumerator()
+		{
+			yield return this;
+		}
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+		{
+			return ((Expression) this).GetEnumerator();
 		}
 	}
 }

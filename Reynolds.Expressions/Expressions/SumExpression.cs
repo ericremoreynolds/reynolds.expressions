@@ -23,12 +23,12 @@ namespace Reynolds.Expressions.Expressions
 					constant += e.Value;
 				else
 				{
-					ProductExpression pe = e as ProductExpression;
+					ApplicationExpression ae = e as ApplicationExpression;
 					dynamic coeff = 1;
-					if(null != pe && pe.Factors[0].IsConstant && pe.Factors[0].IsScalar)
+					if(null != ae && ae.Target.IsConstant && ae.Target.Domain <= Domain.Reals)
 					{
-						coeff = pe.Factors[0].Value;
-						e = ProductExpression.Get(pe.Factors.Skip(1).ToArray());
+						coeff = ae.Target.Value;
+						e = ae.Argument; //ProductExpression.Get(pe.Factors.Skip(1).ToArray());
 					}
 
 					dynamic val;
@@ -73,19 +73,13 @@ namespace Reynolds.Expressions.Expressions
 			return sumExpressions[terms];
 		}
 
-		bool isScalar;
-		public override bool IsScalar
-		{
-			get
-			{
-				return isScalar;
-			}
-		}
-
 		protected SumExpression(Expression[] terms)
 		{
 			this.Terms = terms;
-			isScalar = terms.All(e => e.IsScalar);
+
+			Domain = terms[0].Domain;
+			for(int k = 1; k < terms.Length; k++)
+				Domain = Domain.Sum(Domain, terms[k].Domain);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -121,8 +115,8 @@ namespace Reynolds.Expressions.Expressions
 			bool first = true;
 			for(int k = 0; k < Terms.Length; k++)
 			{
-				ProductExpression pe = Terms[k] as ProductExpression;
-				if(!(pe != null && pe.Factors[0].IsNegative) || Terms[k].IsNegative)
+				ApplicationExpression pe = Terms[k] as ApplicationExpression;
+				if(!(pe != null && pe.Target.IsNegative) || Terms[k].IsNegative)
 					if(!first)
 						context.Emit("+");
 				context.Emit(Terms[k], StringifyOperator.Sum);
@@ -132,20 +126,25 @@ namespace Reynolds.Expressions.Expressions
 				context.Emit(")");
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
-			context.Emit("(");
-			bool first = true;
-			for(int k = 0; k < Terms.Length; k++)
+			if(arguments.Length == 1)
 			{
-				//CoefficientExpression ce = Terms[k] as CoefficientExpression;
-				if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0))
-					if(!first)
-						context.Emit("+");
-				context.Emit(Terms[k]);
-				first = false;
+				context.Emit("(");
+				bool first = true;
+				for(int k = 0; k < Terms.Length; k++)
+				{
+					//CoefficientExpression ce = Terms[k] as CoefficientExpression;
+					if(/*!(ce != null && ce.Coefficient < 0.0) &&*/ !(Terms[k].IsConstant && Terms[k].Value < 0))
+						if(!first)
+							context.Emit("+");
+					context.Emit(Terms[k]);
+					first = false;
+				}
+				context.Emit(")");
 			}
-			context.Emit(")");
+			else
+				base.GenerateCode(context, arguments);
 		}
 	}
 }

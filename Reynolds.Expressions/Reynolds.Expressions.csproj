@@ -40,17 +40,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Domain.cs" />
     <Compile Include="ExpressionCompiler.cs" />
     <Compile Include="ExpressionStringifier.cs" />
     <Compile Include="Expressions\ApplicationExpression.cs" />
-    <Compile Include="Expressions\CastExpression.cs" />
-    <Compile Include="Expressions\CoefficientExpression.cs" />
     <Compile Include="Expressions\ConstantExpression.cs" />
     <Compile Include="Expression.cs" />
     <Compile Include="ExpressionSubstitution.cs" />
     <Compile Include="Expressions\FieldExpression.cs" />
     <Compile Include="Expressions\FunctionExpression.cs" />
-    <Compile Include="Expressions\ProductExpression.cs" />
     <Compile Include="Functions\MatrixFunctions.cs" />
     <Compile Include="Functions\StandardFunctions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

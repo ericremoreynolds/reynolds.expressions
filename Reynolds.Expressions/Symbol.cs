@@ -5,21 +5,17 @@ using System.Text;
 
 namespace Reynolds.Expressions
 {
-	public class Symbol : Expression
+	public class SymbolExpression : Expression
 	{
-		bool isScalar;
-		public override bool IsScalar
+		public static SymbolExpression Get(string name, Domain domain)
 		{
-			get
-			{
-				return isScalar;
-			}
+			return new SymbolExpression(name, domain);
 		}
 
-		public Symbol(string name, bool scalar = true)
+		protected SymbolExpression(string name, Domain domain)
 		{
 			Name = name;
-			isScalar = scalar;
+			Domain = domain;
 		}
 
 		public string Name
@@ -38,7 +34,7 @@ namespace Reynolds.Expressions
 			return (s == this) ? 1 : 0;
 		}
 
-		public static ExpressionSubstitution operator |(Symbol symbol, Expression expression)
+		public static ExpressionSubstitution operator |(SymbolExpression symbol, Expression expression)
 		{
 			return new ExpressionSubstitution(symbol, expression);
 		}
@@ -48,14 +44,10 @@ namespace Reynolds.Expressions
 			context.Emit(this.Name);
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
-			context.Emit(this.Name);
-		}
-
-		public override bool GetIsScalar(Expression[] arguments)
-		{
-			return isScalar;
+			if(arguments.Length == 0)
+				context.Emit(this.Name);
 		}
 	}
 }

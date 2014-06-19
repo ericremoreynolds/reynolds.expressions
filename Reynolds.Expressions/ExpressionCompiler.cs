@@ -78,7 +78,7 @@ namespace Reynolds.Expressions
 				if(this.CachedExpressions.TryGetValue(e, out label))
 					sb.Append(label);
 				else
-					e.GenerateCode(this);
+					e.GenerateCode(this, Expression.EmptyArguments);
 				return this;
 			}
 
@@ -151,7 +151,7 @@ namespace Reynolds.Expressions
 				ec.Priority = Math.Max(currentPriority, ec.Priority);
 				var oldPriority = currentPriority;
 				currentPriority = ec.Priority + 1;
-				e.GenerateCode(this);
+				e.GenerateCode(this, Expression.EmptyArguments);
 				currentPriority = oldPriority;
 				countInc = oldCountInc;
 				return this;
@@ -193,7 +193,7 @@ namespace Reynolds.Expressions
 		{
 			public Expression Expression;
 			public Type DelegateType;
-			public Symbol[] Arguments;
+			public SymbolExpression[] Arguments;
 			public Action<Delegate> Callback;
 		}
 
@@ -211,10 +211,11 @@ namespace Reynolds.Expressions
 					var mi = jobs[k].DelegateType.GetMethod("Invoke");
 					var args = mi.GetParameters();
 
-					ExpressionSubstitution[] subs = new ExpressionSubstitution[jobs[k].Arguments.Length];
-					for(int j = 0; j < jobs[k].Arguments.Length; j++)
-						subs[j] = jobs[k].Arguments[j] | new Symbol("x" + j.ToString());
-					var e = jobs[k].Expression.Substitute(subs);
+					//ExpressionSubstitution[] subs = new ExpressionSubstitution[jobs[k].Arguments.Length];
+					//for(int j = 0; j < jobs[k].Arguments.Length; j++)
+					//   subs[j] = jobs[k].Arguments[j] | Expression.Symbol<("x" + j.ToString());
+					//var e = jobs[k].Expression.Substitute(subs);
+					var e = jobs[k].Expression;
 
 					context.Emit("public static ").Emit(mi.ReturnType).Emit(" f").Emit(k).Emit("(");
 
@@ -222,13 +223,13 @@ namespace Reynolds.Expressions
 					{
 						if(j > 0)
 							context.Emit(", ");
-						context.Emit(args[j].ParameterType).Emit(" x").Emit(j);
+						context.Emit(args[j].ParameterType).Emit(" ").Emit(jobs[k].Arguments[j].Name);
 					}
 					context.Emit(")\n{\n ");
 
 					ExpressionInstanceCounter counters = new ExpressionInstanceCounter();
 
-					e.GenerateCode(counters);
+					e.GenerateCode(counters, Expression.EmptyArguments);
 					foreach(var ec in counters.GetInfos())
 					{
 						string label = "z" + ec.Index.ToString();
@@ -277,12 +278,12 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public void Add<TDelegate>(Expression e, Action<TDelegate> callback, params Symbol[] arguments) where TDelegate : class
+		public void Add<TDelegate>(Expression e, Action<TDelegate> callback, params SymbolExpression[] arguments) where TDelegate : class
 		{
 			Add(e, typeof(TDelegate), result => callback(result as TDelegate), arguments);
 		}
 
-		public void Add(Expression e, Type delegateType, Action<Delegate> callback, params Symbol[] arguments)
+		public void Add(Expression e, Type delegateType, Action<Delegate> callback, params SymbolExpression[] arguments)
 		{
 			if(!delegateType.IsSubclassOf(typeof(Delegate)))
 				throw new InvalidOperationException(delegateType.Name + " is not a delegate type");

@@ -21,6 +21,8 @@ namespace Reynolds.Expressions.Expressions
 		protected ConstantDoubleExpression(double value)
 		{
 			this.value = value;
+
+			this.Domain = Domain.Reals;
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -31,14 +33,6 @@ namespace Reynolds.Expressions.Expressions
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
 			return 0;
-		}
-
-		public override bool IsScalar
-		{
-			get
-			{
-				return true;
-			}
 		}
 
 		public override bool IsConstant
@@ -86,7 +80,7 @@ namespace Reynolds.Expressions.Expressions
 			context.Emit(value);
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
 			context.Emit(value).Emit("d");
 		}
@@ -106,6 +100,8 @@ namespace Reynolds.Expressions.Expressions
 		protected ConstantIntExpression(int value)
 		{
 			this.value = value;
+
+			Domain = Domain.Integers;
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -116,14 +112,6 @@ namespace Reynolds.Expressions.Expressions
 		protected override Expression Derive(VisitCache cache, Expression s)
 		{
 			return 0;
-		}
-
-		public override bool IsScalar
-		{
-			get
-			{
-				return true;
-			}
 		}
 
 		public override bool IsConstant
@@ -171,7 +159,7 @@ namespace Reynolds.Expressions.Expressions
 			context.Emit(value);
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
 			context.Emit(value);
 		}
@@ -192,6 +180,8 @@ namespace Reynolds.Expressions.Expressions
 		{
 			this.obj = obj;
 			this.type = type;
+
+			Domain = Domain.Get(type);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -217,7 +207,7 @@ namespace Reynolds.Expressions.Expressions
 			context.Emit(obj);
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
 			context.Emit(obj, type);
 		}
@@ -230,77 +220,31 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override Expression Normalize(Expression[] arguments)
-		{
-			if(arguments.All(a => a.IsConstant))
-			{
-				FieldExpression fie;
-				if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
-				{
-					FieldInfo fi = obj.GetType().GetField(fie.FieldName);
-					PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
-					Type t = fi == null ? pi.PropertyType : fi.FieldType;
-
-					//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
-					return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null), t);
-				}
-				else
-				{
-					Type type = obj.GetType();
-					if(type.IsArray)
-					{
-						var arr = obj as Array;
-						return Expression.Constant(arr.GetValue(arguments.Select(x => Convert.ToInt32((object) x.Value)).ToArray()), type.GetElementType());
-					}
-					else
-					{
-						// TODO: proper type management
-						return Expression.Constant(type.InvokeMember(
-							"",
-							BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
-							null,
-							obj,
-							arguments.Select(x => (object) x.Value).ToArray()
-							));
-					}
-				}
-			}
-
-			return base.Normalize(arguments);
-		}
-
-		public override bool GetIsScalar(Expression[] arguments)
+		public override Expression Apply(Expression argument)
 		{
 			FieldExpression fie;
-			if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
+			if(null != (fie = argument as FieldExpression))
 			{
 				FieldInfo fi = obj.GetType().GetField(fie.FieldName);
 				PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
 				Type t = fi == null ? pi.PropertyType : fi.FieldType;
-				return t == typeof(int) || t == typeof(double);
+
+				//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
+				return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null), t);
+			}
+			else if(argument.All(a => a.IsConstant))
+			{
+				// TODO: proper type management
+				return Expression.Constant(type.InvokeMember(
+					"",
+					BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
+					null,
+					obj,
+					argument.Select(x => (object) x.Value).ToArray()
+					));
 			}
 			else
-			{
-				Type type = obj.GetType();
-				if(type.IsArray)
-				{
-					var arr = obj as Array;
-					var t = obj.GetType().GetElementType();
-					return t == typeof(int) || t == typeof(double);
-				}
-				else
-				{
-					// TODO: proper type management
-					return false;
-					//return Expression.Constant(type.InvokeMember(
-					//   "",
-					//   BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
-					//   null,
-					//   obj,
-					//   arguments.Select(x => (object) x.Value).ToArray()
-					//   ));
-				}
-			}
+				return base.Apply(argument);
 		}
 	}
 }

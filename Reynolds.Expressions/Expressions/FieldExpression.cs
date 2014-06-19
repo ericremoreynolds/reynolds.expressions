@@ -21,6 +21,8 @@ namespace Reynolds.Expressions.Expressions
 		FieldExpression(string name)
 		{
 			this.FieldName = name;
+
+			this.Domain = Domain.Fields;
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -46,7 +48,7 @@ namespace Reynolds.Expressions.Expressions
 			context.Emit(FieldName);
 		}
 
-		public override void GenerateCode(ICodeGenerationContext context)
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
 		{
 			context.Emit(FieldName);
 		}

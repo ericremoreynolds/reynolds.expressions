@@ -69,17 +69,14 @@ namespace Reynolds.Expressions
 			context.Emit("]");
 		}
 
-		public override Expression Normalize(Expression[] arguments)
+		public override Expression Apply(Expression argument)
 		{
-			if(arguments.All(a => a.IsConstant))
-				return Evaluate((from x in arguments select Convert.ToDouble((object) x.Value)).ToArray());
+			if(argument.All(a => a.IsConstant))
+				return Evaluate((from x in argument select Convert.ToDouble((object) x.Value)).ToArray());
 			else
-				return base.Normalize(arguments);
+				return base.Apply(argument);
 		}
 
-		public override bool GetIsScalar(Expression[] arguments)
-		{
-			return arguments.All(e => e.IsScalar);
-		}
+		protected abstract Expression GetPartialDerivative(int i, Expression[] x);
 	}
 }
