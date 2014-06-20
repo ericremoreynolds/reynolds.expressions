@@ -24,25 +24,36 @@ namespace Reynolds.Expressions
 
 		public abstract double Evaluate(params double[] x);
 
-		public override Expression this[params Expression[] arguments]
-		{
-			get
-			{
-				if(arguments.Length != Arity)
-					throw new Exception("Wrong number of arguments.");
+		//public override Expression this[params Expression[] arguments]
+		//{
+		//   get
+		//   {
 
-				return base[arguments];
-			}
-		}
+		//   }
+		//}
 
 		protected override Expression Substitute(VisitCache cache)
 		{
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
-			throw new NotImplementedException();
+			if(arguments.Length == 1)
+			{
+				var x = arguments[0].ToArray();
+
+				List<Expression> terms = new List<Expression>();
+				for(int k = 0; k < x.Length; k++)
+				{
+					var dx = x[k].Derive(s);
+					if(!dx.IsZero)
+						terms.Add(dx * this.GetPartialDerivative(k, x));
+				}
+				return SumExpression.Get(terms.ToArray());
+			}
+
+			return base.Derive(arguments, s);
 		}
 
 		public override void GenerateCode(ICodeGenerationContext context, Expression[] arguments)
@@ -69,12 +80,22 @@ namespace Reynolds.Expressions
 			context.Emit("]");
 		}
 
-		public override Expression Apply(Expression argument)
+		public override Expression Apply(params Expression[] arguments)
 		{
-			if(argument.All(a => a.IsConstant))
-				return Evaluate((from x in argument select Convert.ToDouble((object) x.Value)).ToArray());
+			//if(arguments.Length != Arity)
+			//   throw new Exception("Wrong number of arguments.");
+
+			//return base[arguments];
+
+			if(arguments.Length == 1 && arguments[0].All(a => a.IsConstant))
+			{
+				if(arguments[0].Count != Arity)
+					throw new Exception("Wrong number of arguments");
+				
+				return Evaluate((from x in arguments[0] select Convert.ToDouble((object) x.Value)).ToArray());
+			}
 			else
-				return base.Apply(argument);
+				return base.Apply(arguments);
 		}
 
 		protected abstract Expression GetPartialDerivative(int i, Expression[] x);

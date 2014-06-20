@@ -96,16 +96,21 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
-			List<Expression> terms = new List<Expression>();
-			foreach(var t in Terms)
+			if(arguments.Length == 0)
 			{
-				var dt = cache[t];
-				if(!dt.IsZero)
-					terms.Add(dt);
+				List<Expression> terms = new List<Expression>();
+				foreach(var t in Terms)
+				{
+					var dt = t.Derive(arguments, s);
+					if(!dt.IsZero)
+						terms.Add(dt);
+				}
+				return SumExpression.Get(terms.ToArray());
 			}
-			return SumExpression.Get(terms.ToArray());
+			else
+				return base.Derive(arguments, s);
 		}
 
 		public override void ToString(IStringifyContext context)

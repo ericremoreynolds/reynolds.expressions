@@ -10,24 +10,27 @@ namespace Reynolds.Expressions
 {
 	public abstract class Domain
 	{
-		public abstract Type Type
+		public virtual Type Type
 		{
-			get;
+			get
+			{
+				return null;
+			}
 		}
 
-		protected virtual Domain Apply(Expression argument)
+		protected virtual Domain Apply(Expression target, Expression argument)
 		{
 			return null;
 		}
 
-		protected virtual Domain ApplyTo(Expression target)
+		protected virtual Domain ApplyTo(Expression target, Expression argument)
 		{
 			return null;
 		}
 
-		protected virtual Domain ApplyCommutative(Expression other)
+		protected virtual Domain ApplyCommutative(Expression a, Expression b)
 		{
-			return null;
+		   return null;
 		}
 
 		public static Domain Apply(Expression target, Expression argument)
@@ -42,6 +45,11 @@ namespace Reynolds.Expressions
 			if(d == null)
 				throw new NotImplementedException();
 			return d;
+		}
+
+		public virtual Expression Derive(Expression target, Expression[] argument, Expression s)
+		{
+			return null;
 		}
 
 		public static Domain Get(Type type)
@@ -81,12 +89,12 @@ namespace Reynolds.Expressions
 
 		public static bool AreCommutative(Domain a, Domain b)
 		{
-			return a.IsCommutative(b); // || b.IsCommutative(a);
+			return a.IsCommutative(b) || b.IsCommutative(a);
 		}
 
 		public static bool AreAssociative(Domain a, Domain b, Domain c)
 		{
-			return a.IsAssociative(b, c); // || b.IsAssociative(a, c) || c.IsAssociative(a, b);
+			return a.IsAssociative(b, c) || b.IsAssociative(a, c) || c.IsAssociative(a, b);
 		}
 
 		protected virtual bool IsContainedIn(Domain other)
@@ -126,6 +134,15 @@ namespace Reynolds.Expressions
 		}
 	}
 
+	public class TupleDomain : Domain
+	{
+		protected TupleDomain()
+		{
+		}
+
+		public static readonly TupleDomain Instance = new TupleDomain();
+	}
+
 	public class MatricesDomain : Domain
 	{
 		protected MatricesDomain()
@@ -138,6 +155,18 @@ namespace Reynolds.Expressions
 			{
 				return null;
 			}
+		}
+
+		public override Expression Derive(Expression target, Expression[] arguments, Expression s)
+		{
+			if(arguments.Length == 1)
+			{
+				var df = target.Derive(Expression.EmptyArguments, s);
+				var dg = arguments[0].Derive(Expression.EmptyArguments, s);
+				return df * arguments[0] + target * dg;
+			}
+			else
+				return base.Derive(target, arguments, s);
 		}
 
 		protected override bool IsAssociative(Domain second, Domain third)
@@ -242,7 +271,41 @@ namespace Reynolds.Expressions
 		{
 		}
 
-		public static readonly FieldDomain Instance;
+		public static readonly FieldDomain Instance = new FieldDomain();
+	}
+
+	public class RealFunctionsDomain : Domain
+	{
+		public static readonly RealFunctionsDomain Instance = new RealFunctionsDomain();
+
+		protected RealFunctionsDomain()
+		{
+		}
+
+		protected override Domain Apply(Expression target, Expression argument)
+		{
+			return Domain.Reals;
+		}
+	}
+	
+	public class PowFunctionDomain : RealFunctionsDomain
+	{
+		protected override Domain Apply(Expression target, Expression argument)
+		{
+			if(argument.GetElement(1).Domain <= Domain.Integers)
+				return argument.GetElement(0).Domain;
+			else if(argument.GetElement(0).Domain <= Domain.Reals && argument.GetElement(1).Domain <= Domain.Reals)
+				return Domain.Reals;
+			else
+				return base.Apply(target, argument);
+		}
+
+		protected PowFunctionDomain()
+			: base(
+		{
+		}
+
+		public static readonly PowFunctionDomain Instance = new PowFunctionDomain();
 	}
 
 	public class TypeDomain : Domain

@@ -29,9 +29,12 @@ namespace Reynolds.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
-			return (s == this) ? 1 : 0;
+			if(arguments.Length == 0)
+				return (s == this) ? 1 : 0;
+			else
+				return base.Derive(arguments, s);
 		}
 
 		public static ExpressionSubstitution operator |(SymbolExpression symbol, Expression expression)

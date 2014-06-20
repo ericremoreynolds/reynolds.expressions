@@ -6,73 +6,6 @@ using Reynolds.Mappings;
 
 namespace Reynolds.Expressions.Expressions
 {
-	public class TupleExpression : Expression
-	{
-		static WeakLazyMapping<Expression[], TupleExpression> instances = new WeakLazyMapping<Expression[], TupleExpression>(
-			es => new TupleExpression(es),
-			null,
-			ReferenceTypeArrayEqualityComparer<Expression>.Instance);
-
-		public readonly Expression[] Elements;
-
-		public static Expression Get(params Expression[] elements)
-		{
-			if(elements.Length == 1)
-				return elements[0];
-			else
-				return instances[elements];
-		}
-
-		TupleExpression(Expression[] elements)
-		{
-			this.Elements = elements;
-		}
-
-		protected override Expression Derive(VisitCache cache, Expression s)
-		{
-			throw new NotImplementedException();
-		}
-
-		protected override Expression Substitute(VisitCache cache)
-		{
-			Expression[] dx = Elements;
-			for(int k = 0; k < Elements.Length; k++)
-				if(Elements[k] != cache[Elements[k]])
-					dx = new Expression[Elements.Length];
-			if(dx != Elements)
-				for(int k = 0; k < Elements.Length; k++)
-					dx[k] = cache[Elements[k]];
-			return Get(dx);
-		}
-
-		public override void ToString(IStringifyContext context)
-		{
-			context.Emit("(");
-			bool first = true;
-			foreach(var e in this)
-			{
-				if(!first)
-					context.Emit(", ");
-				context.Emit(e);
-				first = false;
-			}
-			context.Emit(")");
-		}
-
-		public override int Count
-		{
-			get
-			{
-				return this.Elements.Length;
-			}
-		}
-
-		public override IEnumerator<Expression> GetEnumerator()
-		{
-			return ((IEnumerable<Expression>) this.Elements).GetEnumerator();
-		}
-	}
-
 	public class ApplicationExpression : Expression
 	{
 		public readonly Expression Target;
@@ -93,37 +26,46 @@ namespace Reynolds.Expressions.Expressions
 			var df = cache[Target];
 			var dx = cache[Argument];
 
-			return instances[df, dx];
+			return df[dx];
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
-			throw new NotImplementedException();
-			//List<Expression> terms = new List<Expression>();
-			//for(int k = 0; k < Argument.Length; k++)
+			//var df = Target.Derive(s);
+			//if(df != null)
+			//   return df.
+
+			//List<Expression> args = new List<Expression>();
+			//var df = Target.Derive(Expression.EmptyArguments, s);
+			//for(int k = 0; k < arguments.Length + 1; k++)
 			//{
-			//   var dx = cache[Argument[k]];
-			//   if(!dx.IsZero)
-			//      terms.Add(dx * Applicand.GetPartialDerivative(k, Argument));
+			//   if(df != null)
+			//      break;
+
+				
 			//}
-			//if(terms.Count == 0)
-			//   return 0;
-			//else if(terms.Count == 1)
-			//   return terms[0];
-			//else
-			//{
-			//   terms.Sort();
-			//   return SumExpression.Get(terms.ToArray());
-			//}
+
+			var args = new Expression[arguments.Length + 1];
+			args[0] = Argument;
+			Array.Copy(arguments, 0, args, 1, arguments.Length);
+			return Target.Domain.Derive(Target, args, s);
 		}
 
 		public override void ToString(IStringifyContext context)
 		{
-			context.Emit(Target, new Expression[] { Argument });
+			//context.Emit(Target, new Expression[] { Argument });
+
+			context.Emit(Target).Emit(" ").Emit(Argument);
 		}
 
 		protected static bool ComesBefore(Expression a, Expression b)
 		{
+			ApplicationExpression ae;
+			if(null != (ae = a as ApplicationExpression))
+				return ComesBefore(ae.Argument.GetElement(0), b);
+			else if(null != (ae = b as ApplicationExpression))
+				return ComesBefore(a, ae.Argument.GetElement(0));
+
 			if(a.IsConstant && a.Domain <= Domain.Reals)
 			{
 				if(b.IsConstant && b.Domain <= Domain.Reals)
@@ -140,24 +82,87 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
+		public override Expression Apply(params Expression[] arguments)
+		{
+			var args = new Expression[arguments.Length + 1];
+			args[0] = Argument;
+			Array.Copy(arguments, 0, args, 1, arguments.Length);
+			return Target.Apply(args);
+		}
+
 		public static Expression Get(Expression target, Expression argument)
 		{
 			ApplicationExpression ae;
-			if(null != (ae = argument as ApplicationExpression) && Domain.AreAssociative(target.Domain, ae.Target.Domain, ae.Argument.Domain))
-				return target.Apply(ae.Target).Apply(ae.Argument);
-
-			if(null != (ae = target as ApplicationExpression))
+			
+			while(null != (ae = argument as ApplicationExpression) && Domain.AreAssociative(target.Domain, ae.Target.Domain, ae.Argument.Domain))
 			{
-				if(Domain.AreCommutative(argument.Domain, ae.Target.Domain))
+				if(Domain.AreCommutative(target.Domain, ae.Target.Domain) && ComesBefore(ae.Target, target))
 				{
-					if(argument == ae.Target || ComesBefore(argument, ae.Target))
-						return argument.Apply(target);
+					target = ae.Target.Apply(target);
+					argument = ae.Argument;
+				}
+				else
+				{
+					target = target.Apply(ae.Target);
+					argument = ae.Argument;
 				}
 			}
-			else if(Domain.AreCommutative(target.Domain, argument.Domain) && ComesBefore(argument, target))
+
+			if(null != (ae = target as ApplicationExpression) && Domain.AreCommutative(ae.Argument.Domain, argument.Domain))
+			{
+				if(ComesBefore(argument, ae.Argument))
+				{
+					target = ae.Target.Apply(argument);
+					argument = ae.Argument;
+				}
+			}
+			else
+			{
+				if(Domain.AreCommutative(target.Domain, argument.Domain) && ComesBefore(argument, target))
+					return argument.Apply(target);
+			}
+
+			if(target == argument)
+				return Expression.Pow[target, 2];
+			else if(null != (ae = argument as ApplicationExpression) && ae.Target == Expression.Pow && target == ae.Argument)
+			{
 				return argument.Apply(target);
+			}
 
 			return instances[target, argument];
+
+			//List<Expression> sequence = new List<Expression>();
+			//sequence.Add(argument);
+			//while(null != (ae = target as ApplicationExpression))
+			//{
+			//   sequence.Insert(0, ae.Argument);
+			//   target = ae.Target;
+			//}
+			//sequence.Insert(0, target);
+
+			//bool anyChanges = false;
+			//bool changes = true;
+			//while(changes)
+			//{
+			//   changes = false;
+			//   for(int k=0; k<sequence.Count-1; k++)
+			//      if(Domain.AreCommutative(sequence[k].Domain, sequence[k + 1].Domain) && ComesBefore(sequence[k + 1], sequence[k]))
+			//      {
+			//         var tmp = sequence[k];
+			//         sequence[k] = sequence[k + 1];
+			//         sequence[k + 1] = tmp;
+			//         changes = true;
+			//         anyChanges = true;
+			//      }
+			//}
+
+			//if(anyChanges)
+			//{
+			//   Expression e = sequence[0];
+			//   for(int k = 1; k < sequence.Count; k++)
+			//      e = e.Apply(sequence[k]);
+			//   return e;
+			//}
 		}
 	}
 }

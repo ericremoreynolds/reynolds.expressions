@@ -47,11 +47,20 @@ namespace Reynolds.Expressions
 
 		public Expression Derive(Expression s)
 		{
-			VisitCache cache = new VisitCache((f, c) => f.Derive(c, s));
-			cache.Add(s, 1);
-			return cache[this];
+			//VisitCache cache = new VisitCache((f, c) => f.Derive(c, s));
+			//cache.Add(s, 1);
+			//return cache[this];
+
+			return Derive(Expression.EmptyArguments, s);
 		}
-		protected abstract Expression Derive(VisitCache cache, Expression s);
+		public virtual Expression Derive(Expression[] arguments, Expression s)
+		{
+			var dx = Domain.Derive(this, arguments, s);
+			if(null != dx)
+				return dx;
+			//throw new NotImplementedException();
+			return null;
+		}
 
 		public Domain Domain
 		{
@@ -61,9 +70,12 @@ namespace Reynolds.Expressions
 
 		public static readonly Expression[] EmptyArguments = new Expression[0];
 
-		public virtual Expression Apply(Expression argument)
+		public virtual Expression Apply(params Expression[] arguments)
 		{
-			return ApplicationExpression.Get(this, argument);
+			var e = this;
+			foreach(var arg in arguments)
+				e = ApplicationExpression.Get(e, arg);
+			return e;
 		}
 
 		protected abstract Expression Substitute(VisitCache cache);
@@ -147,11 +159,12 @@ namespace Reynolds.Expressions
 		//{
 		//   get
 		//   {
-		//      return ApplicationExpression.Get(this, argument);
+		//      return this.Apply(this, argument);
+		//      //return ApplicationExpression.Get(this, argument);
 		//   }
 		//}
 
-		public virtual Expression this[params Expression[] arguments]
+		public Expression this[params Expression[] arguments]
 		{
 			get
 			{
@@ -170,7 +183,7 @@ namespace Reynolds.Expressions
 
 		public static readonly FunctionExpression Log = new LogFunction();
 		public static readonly FunctionExpression Exp = new ExpFunction();
-		public static readonly FunctionExpression Pow = new PowFunction();
+		public static readonly FunctionExpression Pow = PowFunction.Instance;
 		public static readonly FunctionExpression Sin = new SinFunction();
 		public static readonly FunctionExpression Cos = new CosFunction();
 		
@@ -291,6 +304,13 @@ namespace Reynolds.Expressions
 			{
 				return 1;
 			}
+		}
+
+		public virtual Expression GetElement(int k)
+		{
+			if(k != 0)
+				throw new IndexOutOfRangeException();
+			return this;
 		}
 
 		public virtual IEnumerator<Expression> GetEnumerator()

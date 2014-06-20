@@ -30,11 +30,6 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
-		{
-			return 0;
-		}
-
 		public override bool IsConstant
 		{
 			get

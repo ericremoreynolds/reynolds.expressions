@@ -142,8 +142,15 @@ namespace Reynolds.Expressions.Functions
 		}
 	}
 
-	internal class PowFunction : FunctionExpression
+	public class PowFunction : FunctionExpression
 	{
+		protected PowFunction()
+		{
+			Domain = PowFunctionDomain.Instance;
+		}
+
+		public readonly static PowFunction Instance = new PowFunction();
+
 		public override int Arity
 		{
 			get
@@ -186,6 +193,35 @@ namespace Reynolds.Expressions.Functions
 		//   else
 		//      return base.Normalize(arguments);
 		//}
+
+		public override Expression Apply(params Expression[] arguments)
+		{
+			if(arguments.Length == 1)
+			{
+				var ae = arguments[0].GetElement(0) as ApplicationExpression;
+				if(null != ae)
+				{
+					// Pow[a * b, n] ==> Pow[a, n] * Pow[b, n] when b in Reals
+					if(ae.Argument.Domain <= Domain.Reals)
+						return Expression.Pow[ae.Target, arguments[0].GetElement(1)] * Expression.Pow[ae.Argument, arguments[0].GetElement(0)];
+					// Pow[Pow[x, a], b] ==> Pow[x, a*b]
+					else if(ae.Target == Expression.Pow)
+						return Expression.Pow[ae.Argument.GetElement(0), ae.Argument.GetElement(1) * arguments[0].GetElement(1)];
+				}
+			}
+			else if(arguments.Length == 2)
+			{
+				ApplicationExpression ae;
+				// Pow[x, n][x] ==> Pow[x, n+1]
+				if(arguments[0].GetElement(0) == arguments[1])
+					return Expression.Pow[arguments[1], arguments[0].GetElement(1) + 1];
+				// Pow[x, n][Pow[x, m]] ==> Pow[x, n+m]
+				else if(null != (ae = arguments[1] as ApplicationExpression) && ae.Target == Expression.Pow && ae.Argument.GetElement(0) == arguments[0].GetElement(0))
+					return Expression.Pow[arguments[0].GetElement(0), arguments[0].GetElement(1) + ae.Argument.GetElement(1)];
+			}
+
+			return base.Apply(arguments);
+		}
 
 		public override void ToString(IStringifyContext context, Expression[] x)
 		{

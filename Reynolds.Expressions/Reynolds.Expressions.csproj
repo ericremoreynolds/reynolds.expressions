@@ -49,11 +49,12 @@
     <Compile Include="ExpressionSubstitution.cs" />
     <Compile Include="Expressions\FieldExpression.cs" />
     <Compile Include="Expressions\FunctionExpression.cs" />
+    <Compile Include="Expressions\TupleExpression.cs" />
     <Compile Include="Functions\MatrixFunctions.cs" />
     <Compile Include="Functions\StandardFunctions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Expressions\SumExpression.cs" />
-    <Compile Include="Symbol.cs" />
+    <Compile Include="Expressions\SymbolExpression.cs" />
     <Compile Include="VisitCache.cs" />
   </ItemGroup>
   <ItemGroup>

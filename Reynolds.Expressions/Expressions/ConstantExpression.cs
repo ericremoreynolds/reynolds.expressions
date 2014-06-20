@@ -30,7 +30,7 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
 			return 0;
 		}
@@ -75,6 +75,17 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
+		public override Expression Apply(params Expression[] arguments)
+		{
+			if(arguments.Length == 1)
+			{
+				if(arguments[0].IsConstant && arguments[0].Domain <= Domain.Reals)
+					return value * arguments[0].Value;
+			}
+
+			return base.Apply(arguments);
+		}
+
 		public override void ToString(IStringifyContext context)
 		{
 			context.Emit(value);
@@ -109,7 +120,7 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
 			return 0;
 		}
@@ -154,6 +165,17 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
+		public override Expression Apply(params Expression[] arguments)
+		{
+			if(arguments.Length == 1)
+			{
+				if(arguments[0].IsConstant && arguments[0].Domain <= Domain.Reals)
+					return value * arguments[0].Value;
+			}
+
+			return base.Apply(arguments);
+		}
+
 		public override void ToString(IStringifyContext context)
 		{
 			context.Emit(value);
@@ -189,7 +211,7 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		public override Expression Derive(Expression[] arguments, Expression s)
 		{
 			return 0;
 		}
@@ -220,31 +242,36 @@ namespace Reynolds.Expressions.Expressions
 			}
 		}
 
-		public override Expression Apply(Expression argument)
+		public override Expression Apply(params Expression[] arguments)
 		{
-			FieldExpression fie;
-			if(null != (fie = argument as FieldExpression))
+			if(arguments.Length == 1)
 			{
-				FieldInfo fi = obj.GetType().GetField(fie.FieldName);
-				PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
-				Type t = fi == null ? pi.PropertyType : fi.FieldType;
+				var argument = arguments[0];
 
-				//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
-				return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null), t);
+				FieldExpression fie;
+				if(null != (fie = argument as FieldExpression))
+				{
+					FieldInfo fi = obj.GetType().GetField(fie.FieldName);
+					PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
+					Type t = fi == null ? pi.PropertyType : fi.FieldType;
+
+					//return Expression.Constant(obj.GetType().GetField(fie.FieldName).GetValue(obj));
+					return Expression.Constant(obj.GetType().InvokeMember(fie.FieldName, BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance, null, obj, null), t);
+				}
+				else if(argument.All(a => a.IsConstant))
+				{
+					// TODO: proper type management
+					return Expression.Constant(type.InvokeMember(
+						"",
+						BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
+						null,
+						obj,
+						argument.Select(x => (object) x.Value).ToArray()
+						));
+				}
 			}
-			else if(argument.All(a => a.IsConstant))
-			{
-				// TODO: proper type management
-				return Expression.Constant(type.InvokeMember(
-					"",
-					BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
-					null,
-					obj,
-					argument.Select(x => (object) x.Value).ToArray()
-					));
-			}
-			else
-				return base.Apply(argument);
+
+			return base.Apply(arguments);
 		}
 	}
 }
