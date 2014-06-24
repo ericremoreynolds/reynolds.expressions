@@ -5,6 +5,7 @@ using System.Text;
 using Reynolds.Expressions.Expressions;
 using System.Reflection;
 using Reynolds.Mappings;
+using Reynolds.Expressions.Domains;
 
 namespace Reynolds.Expressions
 {
@@ -18,38 +19,38 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		protected virtual Domain Apply(Expression target, Expression argument)
+		public abstract Domain Base
 		{
-			return null;
+			get;
 		}
 
-		protected virtual Domain ApplyTo(Expression target, Expression argument)
+		protected virtual void InitializeExpressionHook(Expression expression)
 		{
-			return null;
 		}
 
-		protected virtual Domain ApplyCommutative(Expression a, Expression b)
+		public static void InitializeExpression(Expression expression, params Domain[] domains)
 		{
-		   return null;
+			foreach(var domain in domains)
+				for(var d = domain; d != null; d = d.Base)
+					d.InitializeExpressionHook(expression);
 		}
 
-		public static Domain Apply(Expression target, Expression argument)
+		protected virtual Expression NormalizeExpressionHook(Expression expression)
 		{
-			Domain d = target.Domain.Apply(argument);
-			if(d == null)
-				d = argument.Domain.ApplyTo(target);
-			if(d == null)
-				d = target.Domain.ApplyCommutative(argument);
-			if(d == null)
-				d = argument.Domain.ApplyCommutative(target);
-			if(d == null)
-				throw new NotImplementedException();
-			return d;
+			return expression;
 		}
 
-		public virtual Expression Derive(Expression target, Expression[] argument, Expression s)
+		public static Expression NormalizeExpression(Expression expression, params Domain[] domains)
 		{
-			return null;
+			Expression e = expression;
+			foreach(var domain in domains)
+				for(var d = domain; d != null; d = d.Base)
+					e = d.NormalizeExpressionHook(e);
+		}
+
+		public virtual Expression Derive(Expression target, Expression[] arguments, Expression s)
+		{
+			return Base.Derive(target, arguments, s);
 		}
 
 		public static Domain Get(Type type)
@@ -62,29 +63,14 @@ namespace Reynolds.Expressions
 				return TypeDomain.Get(type);
 		}
 
-		protected virtual Domain Sum(Domain other)
-		{
-			return null;
-		}
-
-		public static Domain Sum(Domain a, Domain b)
-		{
-			Domain d = a.Sum(b);
-			if(d == null)
-				d = b.Sum(a);
-			if(d == null)
-				throw new NotImplementedException();
-			return d;
-		}
-
 		protected virtual bool IsAssociative(Domain second, Domain third)
 		{
-			return false;
+			return Base.IsAssociative(second, third);
 		}
 
 		protected virtual bool IsCommutative(Domain other)
 		{
-			return false;
+			return Base.IsCommutative(other);
 		}
 
 		public static bool AreCommutative(Domain a, Domain b)
@@ -99,7 +85,7 @@ namespace Reynolds.Expressions
 
 		protected virtual bool IsContainedIn(Domain other)
 		{
-			return false;
+			return Base <= other;
 		}
 
 		protected virtual bool Contains(Domain other)
@@ -107,21 +93,11 @@ namespace Reynolds.Expressions
 			return false;
 		}
 
+		public static readonly Domain Universal = UniversalDomain.Instance;
+
+		public static readonly Domain Matrices = MatricesDomain.Instance;
 		public static readonly Domain Reals = RealsDomain.Instance;
 		public static readonly Domain Integers = IntegersDomain.Instance;
-		public static readonly Domain Matrices = MatricesDomain.Instance;
-
-		public static readonly Domain Fields = FieldDomain.Instance;
-
-		//public static bool operator < (Domain a, Domain b)
-		//{
-		//   return a.IsContainedIn(b) || b.Contains(a);
-		//}
-
-		//public static bool operator >(Domain b, Domain a)
-		//{
-		//   return a.IsContainedIn(b) || b.Contains(a);
-		//}
 
 		public static bool operator <=(Domain a, Domain b)
 		{
@@ -132,177 +108,59 @@ namespace Reynolds.Expressions
 		{
 			return a == b || a.IsContainedIn(b) || b.Contains(a);
 		}
-	}
 
-	public class TupleDomain : Domain
-	{
-		protected TupleDomain()
+		public static Domain operator *(Domain a, Domain b)
 		{
-		}
-
-		public static readonly TupleDomain Instance = new TupleDomain();
-	}
-
-	public class MatricesDomain : Domain
-	{
-		protected MatricesDomain()
-		{
-		}
-
-		public override Type Type
-		{
-			get
-			{
-				return null;
-			}
-		}
-
-		public override Expression Derive(Expression target, Expression[] arguments, Expression s)
-		{
-			if(arguments.Length == 1)
-			{
-				var df = target.Derive(Expression.EmptyArguments, s);
-				var dg = arguments[0].Derive(Expression.EmptyArguments, s);
-				return df * arguments[0] + target * dg;
-			}
+			if(a <= b)
+				return b;
+			else if(b <= a)
+				return a;
 			else
-				return base.Derive(target, arguments, s);
+				// TODO: domain intersections
+				throw new NotImplementedException();
 		}
-
-		protected override bool IsAssociative(Domain second, Domain third)
-		{
-			return second <= Domain.Matrices && third <= Domain.Matrices;
-		}
-
-		public static readonly MatricesDomain Instance = new MatricesDomain();
-	}
-
-	public class RealsDomain : MatricesDomain
-	{
-		protected RealsDomain()
-		{
-		}
-
-		public override Type Type
-		{
-			get
-			{
-				return typeof(double);
-			}
-		}
-
-		protected override Domain Apply(Expression argument)
-		{
-			if(argument.Domain <= Domain.Reals)
-				return Domain.Reals;
-			else
-				return null;
-		}
-
-		protected override Domain Sum(Domain other)
-		{
-			if(other <= Domain.Reals)
-				return Domain.Reals;
-			return null;
-		}
-
-		protected override bool IsCommutative(Domain other)
-		{
-			return other <= Domain.Reals;
-		}
-
-		protected override bool IsContainedIn(Domain other)
-		{
-			return other <= Domain.Matrices;
-		}
-
-		public static new readonly RealsDomain Instance = new RealsDomain();
-	}
-
-	public class IntegersDomain : RealsDomain
-	{
-		protected IntegersDomain()
-		{
-		}
-
-		public override Type Type
-		{
-			get
-			{
-				return typeof(int);
-			}
-		}
-
-		protected override Domain Apply(Expression argument)
-		{
-			if(argument.Domain <= Domain.Integers)
-				return Domain.Integers;
-			else
-				return base.Apply(argument);
-		}
-
-		protected override Domain Sum(Domain other)
-		{
-			if(other <= Domain.Integers)
-				return Domain.Integers;
-			else
-				return base.Sum(other);
-		}
-
-		protected override bool IsContainedIn(Domain other)
-		{
-			return other >= Domain.Reals;
-		}
-
-		public static new readonly IntegersDomain Instance = new IntegersDomain();
-	}
-
-	public class FieldDomain : Domain
-	{
-		public override Type Type
-		{
-			get
-			{
-				return null;
-			}
-		}
-
-		protected FieldDomain()
-		{
-		}
-
-		public static readonly FieldDomain Instance = new FieldDomain();
 	}
 
 	public class RealFunctionsDomain : Domain
 	{
 		public static readonly RealFunctionsDomain Instance = new RealFunctionsDomain();
 
-		protected RealFunctionsDomain()
+		public override Domain Base
 		{
+			get
+			{
+				return Domain.Universal;
+			}
 		}
 
-		protected override Domain Apply(Expression target, Expression argument)
+		protected override void InitializeExpressionHook(Expression expression)
 		{
-			return Domain.Reals;
+			ApplicationExpression ae;
+			if(null != (ae = expression as ApplicationExpression))
+				expression.Domain *= Domain.Reals;
 		}
 	}
-	
-	public class PowFunctionDomain : RealFunctionsDomain
+
+	public class PowFunctionDomain : Domain
 	{
-		protected override Domain Apply(Expression target, Expression argument)
+		protected override void InitializeExpressionHook(Expression expression)
 		{
-			if(argument.GetElement(1).Domain <= Domain.Integers)
-				return argument.GetElement(0).Domain;
-			else if(argument.GetElement(0).Domain <= Domain.Reals && argument.GetElement(1).Domain <= Domain.Reals)
-				return Domain.Reals;
-			else
-				return base.Apply(target, argument);
+			ApplicationExpression ae;
+			if(null != (ae = expression as ApplicationExpression) && ae.Target.Domain <= this)
+			{
+				if(ae.Argument.GetElement(1).Domain <= Domain.Integers)
+					expression.Domain *= ae.Argument.GetElement(0).Domain;
+				else if(ae.Argument.GetElement(0).Domain <= Domain.Reals && ae.Argument.GetElement(1).Domain <= Domain.Reals)
+					expression.Domain *= Domain.Reals;
+			}
 		}
 
-		protected PowFunctionDomain()
-			: base(
+		public override Domain Base
 		{
+			get
+			{
+				return RealFunctionsDomain.Instance;
+			}
 		}
 
 		public static readonly PowFunctionDomain Instance = new PowFunctionDomain();
@@ -315,6 +173,14 @@ namespace Reynolds.Expressions
 		public static new TypeDomain Get(Type type)
 		{
 			return instances[type];
+		}
+
+		public override Domain Base
+		{
+			get
+			{
+				return Domain.Universal;
+			}
 		}
 
 		TypeDomain(Type type)
@@ -331,7 +197,7 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		protected override Domain Apply(Expression argument)
+		protected override Domain LeftApply(Expression target, Expression argument)
 		{
 			FieldExpression fe = argument as FieldExpression;
 			if(null != fe)

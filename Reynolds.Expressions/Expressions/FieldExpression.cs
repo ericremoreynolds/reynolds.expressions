@@ -21,8 +21,6 @@ namespace Reynolds.Expressions.Expressions
 		FieldExpression(string name)
 		{
 			this.FieldName = name;
-
-			this.Domain = Domain.Fields;
 		}
 
 		protected override Expression Substitute(VisitCache cache)

@@ -26,7 +26,6 @@ namespace Reynolds.Expressions.Expressions
 		TupleExpression(Expression[] elements)
 		{
 			this.Elements = elements;
-			this.Domain = TupleDomain.Instance;
 		}
 
 		protected override Expression Substitute(VisitCache cache)

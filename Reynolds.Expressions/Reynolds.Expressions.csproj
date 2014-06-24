@@ -41,6 +41,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Domain.cs" />
+    <Compile Include="Domains\IntegersDomain.cs" />
+    <Compile Include="Domains\MatricesDomain.cs" />
+    <Compile Include="Domains\RealsDomain.cs" />
+    <Compile Include="Domains\UniversalDomain.cs" />
     <Compile Include="ExpressionCompiler.cs" />
     <Compile Include="ExpressionStringifier.cs" />
     <Compile Include="Expressions\ApplicationExpression.cs" />

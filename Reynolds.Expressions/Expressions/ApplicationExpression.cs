@@ -18,7 +18,7 @@ namespace Reynolds.Expressions.Expressions
 			this.Target = target;
 			this.Argument = argument;
 
-			this.Domain = Domain.Apply(target, argument);
+			Domain.InitializeExpression(this, target.Domain, argument.Domain);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -48,7 +48,7 @@ namespace Reynolds.Expressions.Expressions
 			var args = new Expression[arguments.Length + 1];
 			args[0] = Argument;
 			Array.Copy(arguments, 0, args, 1, arguments.Length);
-			return Target.Domain.Derive(Target, args, s);
+			return Target.Derive(args, s);
 		}
 
 		public override void ToString(IStringifyContext context)
@@ -93,7 +93,7 @@ namespace Reynolds.Expressions.Expressions
 		public static Expression Get(Expression target, Expression argument)
 		{
 			ApplicationExpression ae;
-			
+
 			while(null != (ae = argument as ApplicationExpression) && Domain.AreAssociative(target.Domain, ae.Target.Domain, ae.Argument.Domain))
 			{
 				if(Domain.AreCommutative(target.Domain, ae.Target.Domain) && ComesBefore(ae.Target, target))

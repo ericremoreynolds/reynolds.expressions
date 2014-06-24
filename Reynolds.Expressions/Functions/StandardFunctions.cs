@@ -208,6 +208,8 @@ namespace Reynolds.Expressions.Functions
 					else if(ae.Target == Expression.Pow)
 						return Expression.Pow[ae.Argument.GetElement(0), ae.Argument.GetElement(1) * arguments[0].GetElement(1)];
 				}
+				else if(arguments[0].GetElement(1).IsConstant && arguments[0].GetElement(1).Value == 1)
+					return arguments[0].GetElement(0);
 			}
 			else if(arguments.Length == 2)
 			{

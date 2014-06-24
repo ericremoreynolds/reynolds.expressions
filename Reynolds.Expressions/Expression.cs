@@ -9,6 +9,7 @@ using Reynolds.Mappings;
 using Reynolds.Expressions.Functions;
 using Reynolds.Expressions.Expressions;
 using System.CodeDom;
+using Reynolds.Expressions.Domains;
 
 namespace Reynolds.Expressions
 {
@@ -21,6 +22,8 @@ namespace Reynolds.Expressions
 
 		protected Expression()
 		{
+			Domain = UniversalDomain.Instance;
+
 			if(ordinalCounter == Int32.MaxValue)
 				throw new Exception("Exhausted ordinals.");
 
@@ -65,7 +68,7 @@ namespace Reynolds.Expressions
 		public Domain Domain
 		{
 			get;
-			protected set;
+			set;
 		}
 
 		public static readonly Expression[] EmptyArguments = new Expression[0];
