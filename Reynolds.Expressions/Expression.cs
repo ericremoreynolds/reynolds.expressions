@@ -27,6 +27,30 @@ namespace Reynolds.Expressions
 			ordinal = ordinalCounter++;
 		}
 
+		public virtual bool IsMatrix
+		{
+			get
+			{
+				return false;
+			}
+		}
+
+		public virtual Expression Rows
+		{
+			get
+			{
+				return MatrixRowsExpression.Get(this);
+			}
+		}
+
+		public virtual Expression Columns
+		{
+			get
+			{
+				return MatrixColumnsExpression.Get(this);
+			}
+		}
+
 		public Expression Substitute(params ExpressionSubstitution[] substitutions)
 		{
 			VisitCache cache = new VisitCache((f, c) => f.Substitute(c));
@@ -45,13 +69,18 @@ namespace Reynolds.Expressions
 				return this;
 		}
 
-		public Expression Derive(Expression s)
+		public static IDerivativeCache NewDerivativeCache()
 		{
-			VisitCache cache = new VisitCache((f, c) => f.Derive(c, s));
-			cache.Add(s, 1);
-			return cache[this];
+			return new DerivativeCache();
 		}
-		protected abstract Expression Derive(VisitCache cache, Expression s);
+
+		public Expression Derive(Expression variable)
+		{
+			var cache = new DerivativeCache();
+			return cache[this, variable];
+		}
+
+		internal abstract Expression Derive(IDerivativeCache cache, Expression variable);
 
 		public virtual Expression Normalize(Expression[] arguments)
 		{
@@ -60,13 +89,13 @@ namespace Reynolds.Expressions
 
 		protected abstract Expression Substitute(VisitCache cache);
 
-		public virtual bool IsScalar
-		{
-			get
-			{
-				return false;
-			}
-		}
+		//public virtual bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return false;
+		//   }
+		//}
 
 		public virtual bool IsNegative
 		{
@@ -108,6 +137,11 @@ namespace Reynolds.Expressions
 			}
 		}
 
+		public static implicit operator Expression(DateTime dt)
+		{
+			return ConstantObjectExpression.Get(dt, typeof(DateTime));
+		}
+
 		public static implicit operator Expression(double a)
 		{
 			return ConstantDoubleExpression.Get(a);
@@ -131,6 +165,11 @@ namespace Reynolds.Expressions
 		public static Expression operator *(Expression f, Expression g)
 		{
 			return ProductExpression.Get(f, g);
+		}
+
+		public static Expression operator %(Expression f, Expression g)
+		{
+			return MatrixMultiplyExpression.Get(f, g);
 		}
 
 		public static Expression operator /(Expression f, Expression g)
@@ -164,11 +203,12 @@ namespace Reynolds.Expressions
 		public static readonly FunctionExpression Pow = new PowFunction();
 		public static readonly FunctionExpression Sin = new SinFunction();
 		public static readonly FunctionExpression Cos = new CosFunction();
+		public static readonly FunctionExpression Identity = new IdentityFunction();
 		
-		public TDelegate Compile<TDelegate>(params Symbol[] x)
+		public TDelegate Compile<TDelegate>(params Symbol[] xs)
 		{
 			ExpressionCompiler c = new ExpressionCompiler();
-			c.Add(this, typeof(TDelegate), null, x);
+			c.Add(this, typeof(TDelegate), null, (from x in xs select (ExpressionCompilerArgument) x).ToArray());
 			return (TDelegate) (object) c.CompileAll()[0];
 		}
 
@@ -275,9 +315,44 @@ namespace Reynolds.Expressions
 			throw new NotImplementedException();
 		}
 
-		public virtual bool GetIsScalar(Expression[] arguments)
+		public static Expression MMult(params Expression[] factors)
 		{
-			throw new NotImplementedException();
+			return MatrixMultiplyExpression.Get(factors);
 		}
+
+		public virtual Expression Inverse()
+		{
+			return MatrixInverseExpression.Get(this);
+		}
+
+		public virtual Expression Transpose()
+		{
+			return MatrixTransposeExpression.Get(this);
+		}
+
+		public static Expression Sum(params Expression[] terms)
+		{
+			return SumExpression.Get(terms);
+		}
+
+		public static Expression Sum(Expression collection, Func<Symbol, Expression> term)
+		{
+			return CollectionSumExpression.Get(collection, term);
+		}
+
+		public static Expression Sum(Expression from, Expression to, Func<Symbol, Expression> term)
+		{
+			return DynamicSumExpression.Get(from, to, term);
+		}
+
+		public static Expression Product(params Expression[] terms)
+		{
+			return ProductExpression.Get(terms);
+		}
+
+		//public virtual bool GetIsScalar(Expression[] arguments)
+		//{
+		//   throw new NotImplementedException();
+		//}
 	}
 }

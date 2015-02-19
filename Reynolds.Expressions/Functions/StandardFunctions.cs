@@ -16,9 +16,9 @@ namespace Reynolds.Expressions.Functions
 			}
 		}
 
-		public override double Evaluate(params double[] x)
+		public override object Evaluate(params object[] x)
 		{
-			return Math.Cos(x[0]);
+			return Math.Cos(Convert.ToDouble(x[0]));
 		}
 
 		public override Expression GetPartialDerivative(int i, params Expression[] x)
@@ -47,9 +47,9 @@ namespace Reynolds.Expressions.Functions
 			}
 		}
 
-		public override double Evaluate(params double[] x)
+		public override object Evaluate(params object[] x)
 		{
-			return Math.Sin(x[0]);
+			return Math.Sin(Convert.ToDouble(x[0]));
 		}
 
 		public override Expression GetPartialDerivative(int i, params Expression[] x)
@@ -79,9 +79,9 @@ namespace Reynolds.Expressions.Functions
 			}
 		}
 
-		public override double Evaluate(params double[] x)
+		public override object Evaluate(params object[] x)
 		{
-			return Math.Exp(x[0]);
+			return Math.Exp(Convert.ToDouble(x[0]));
 		}
 
 		public override Expression GetPartialDerivative(int i, params Expression[] x)
@@ -110,9 +110,9 @@ namespace Reynolds.Expressions.Functions
 			}
 		}
 
-		public override double Evaluate(params double[] x)
+		public override object Evaluate(params object[] x)
 		{
-			return Math.Log(x[0]);
+			return Math.Log(Convert.ToDouble(x[0]));
 		}
 
 		public override Expression GetPartialDerivative(int i, params Expression[] x)
@@ -141,9 +141,9 @@ namespace Reynolds.Expressions.Functions
 			}
 		}
 
-		public override double Evaluate(params double[] x)
+		public override object Evaluate(params object[] x)
 		{
-			return Math.Pow(x[0], x[1]);
+			return Math.Pow(Convert.ToDouble(x[0]), Convert.ToDouble(x[1]));
 		}
 
 		public override Expression GetPartialDerivative(int i, params Expression[] x)
@@ -191,6 +191,53 @@ namespace Reynolds.Expressions.Functions
 		public override void GenerateCode(ICodeGenerationContext context)
 		{
 			context.Emit("Math.Pow");
+		}
+	}
+
+	public class IdentityFunction : FunctionExpression
+	{
+		public override int Arity
+		{
+			get
+			{
+				return 2;
+			}
+		}
+
+		public override object Evaluate(params object[] x)
+		{
+			return x[0] == x[1] ? 1 : 0;
+		}
+
+		public override Expression GetPartialDerivative(int i, params Expression[] x)
+		{
+			throw new InvalidOperationException();
+		}
+
+		public override void GenerateCode(ICodeGenerationContext context, Expression[] x)
+		{
+			context.Emit("(").Emit(x[0]).Emit("==").Emit(x[1]).Emit("?1:0)");
+		}
+
+		public override Expression Normalize(Expression[] arguments)
+		{
+			if(arguments[0] == arguments[1])
+				return 1;
+
+			if(arguments[0].CompareTo(arguments[1]) > 0)
+				return Expression.Identity[arguments[1], arguments[0]];
+
+			return base.Normalize(arguments);
+		}
+
+		public override void ToString(IStringifyContext context)
+		{
+			context.Emit("id");
+		}
+
+		public override void GenerateCode(ICodeGenerationContext context)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }

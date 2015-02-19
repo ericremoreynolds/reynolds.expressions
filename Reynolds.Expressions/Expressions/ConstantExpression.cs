@@ -28,18 +28,18 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			return 0;
 		}
 
-		public override bool IsScalar
-		{
-			get
-			{
-				return true;
-			}
-		}
+		//public override bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return true;
+		//   }
+		//}
 
 		public override bool IsConstant
 		{
@@ -113,18 +113,18 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			return 0;
 		}
 
-		public override bool IsScalar
-		{
-			get
-			{
-				return true;
-			}
-		}
+		//public override bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return true;
+		//   }
+		//}
 
 		public override bool IsConstant
 		{
@@ -199,7 +199,7 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			return 0;
 		}
@@ -269,38 +269,38 @@ namespace Reynolds.Expressions.Expressions
 			return base.Normalize(arguments);
 		}
 
-		public override bool GetIsScalar(Expression[] arguments)
-		{
-			FieldExpression fie;
-			if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
-			{
-				FieldInfo fi = obj.GetType().GetField(fie.FieldName);
-				PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
-				Type t = fi == null ? pi.PropertyType : fi.FieldType;
-				return t == typeof(int) || t == typeof(double);
-			}
-			else
-			{
-				Type type = obj.GetType();
-				if(type.IsArray)
-				{
-					var arr = obj as Array;
-					var t = obj.GetType().GetElementType();
-					return t == typeof(int) || t == typeof(double);
-				}
-				else
-				{
-					// TODO: proper type management
-					return false;
-					//return Expression.Constant(type.InvokeMember(
-					//   "",
-					//   BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
-					//   null,
-					//   obj,
-					//   arguments.Select(x => (object) x.Value).ToArray()
-					//   ));
-				}
-			}
-		}
+		//public override bool GetIsScalar(Expression[] arguments)
+		//{
+		//   FieldExpression fie;
+		//   if(arguments.Length == 1 && null != (fie = arguments[0] as FieldExpression))
+		//   {
+		//      FieldInfo fi = obj.GetType().GetField(fie.FieldName);
+		//      PropertyInfo pi = obj.GetType().GetProperty(fie.FieldName);
+		//      Type t = fi == null ? pi.PropertyType : fi.FieldType;
+		//      return t == typeof(int) || t == typeof(double);
+		//   }
+		//   else
+		//   {
+		//      Type type = obj.GetType();
+		//      if(type.IsArray)
+		//      {
+		//         var arr = obj as Array;
+		//         var t = obj.GetType().GetElementType();
+		//         return t == typeof(int) || t == typeof(double);
+		//      }
+		//      else
+		//      {
+		//         // TODO: proper type management
+		//         return false;
+		//         //return Expression.Constant(type.InvokeMember(
+		//         //   "",
+		//         //   BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty,
+		//         //   null,
+		//         //   obj,
+		//         //   arguments.Select(x => (object) x.Value).ToArray()
+		//         //   ));
+		//      }
+		//   }
+		//}
 	}
 }

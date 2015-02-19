@@ -23,7 +23,7 @@ namespace Reynolds.Expressions.Expressions
 			this.Inner = inner;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			throw new NotImplementedException();
 		}

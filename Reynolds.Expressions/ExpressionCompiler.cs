@@ -21,6 +21,48 @@ namespace Reynolds.Expressions
 		ICodeGenerationContext Emit(Expression e, Expression[] args);
 	}
 
+	public abstract class ExpressionCompilerArgument
+	{
+		public static implicit operator ExpressionCompilerArgument(Symbol symbol)
+		{
+			return new ExpressionCompilerSymbolArgumentInfo(symbol);
+		}
+	}
+
+	internal class ExpressionCompilerSymbolArgumentInfo : ExpressionCompilerArgument
+	{
+		public readonly Symbol Symbol;
+
+		public ExpressionCompilerSymbolArgumentInfo(Symbol symbol)
+		{
+			this.Symbol = symbol;
+		}
+	}
+
+	internal class ExpressionCompilerExpressionArgumentInfo : ExpressionCompilerArgument
+	{
+		public readonly Expression Expression;
+		public readonly bool IsRef;
+
+		public ExpressionCompilerExpressionArgumentInfo(Expression expression, bool isRef)
+		{
+			this.Expression = expression;
+			this.IsRef = isRef;
+		}
+	}
+
+	internal class ExpressionCompilerExpressionArrayArgumentInfo : ExpressionCompilerArgument
+	{
+		public readonly Expression[] Expressions;
+		public readonly bool CreateIfNull;
+
+		public ExpressionCompilerExpressionArrayArgumentInfo(Expression[] expressions, bool createIfNull)
+		{
+			this.Expressions = expressions;
+			this.CreateIfNull = createIfNull;
+		}
+	}
+
 	public class ExpressionCompiler
 	{
 		class CodeGenerationContext : ICodeGenerationContext, IDisposable
@@ -38,6 +80,8 @@ namespace Reynolds.Expressions
 			public ICodeGenerationContext Emit(Type type)
 			{
 				Assemblies.Add(type.Assembly);
+				if(type.IsByRef)
+					type = type.GetElementType();
 				sb.Append(provider.GetTypeOutput(new CodeTypeReference(type)));
 				return this;
 			}
@@ -191,13 +235,102 @@ namespace Reynolds.Expressions
 
 		class CompilationInfo
 		{
-			public Expression Expression;
+			public Expression ReturnExpression;
 			public Type DelegateType;
-			public Symbol[] Arguments;
+			public ExpressionCompilerArgument[] Arguments;
 			public Action<Delegate> Callback;
 		}
 
 		List<CompilationInfo> jobs = new List<CompilationInfo>();
+
+		abstract class Job
+		{
+			public abstract void GenerateCode(ICodeGenerationContext context);
+			public abstract void Emit(ICodeGenerationContext context);
+		}
+
+		class ExpressionArrayJob : Job
+		{
+			public ExpressionArrayJob(string name, Expression[] expressions, ExpressionCompilerExpressionArrayArgumentInfo argument)
+			{
+				this.Name = name;
+				this.Argument = argument;
+				this.Expressions = expressions;
+			}
+
+			public readonly Expression[] Expressions;
+			public readonly ExpressionCompilerExpressionArrayArgumentInfo Argument;
+			public readonly string Name;
+
+			public override void GenerateCode(ICodeGenerationContext context)
+			{
+				foreach(var e in Expressions)
+					e.GenerateCode(context);
+			}
+
+			public override void Emit(ICodeGenerationContext context)
+			{
+				if(Argument.CreateIfNull)
+					context.Emit("if(" + Name + " != null) {\n");
+				else
+					context.Emit("{ " + Name + " = new double[" + Expressions.Length.ToString() + "];\n");
+				for(int k = 0; k < Expressions.Length; k++)
+					context.Emit(Name + "[" + k.ToString() + "] = ").Emit(Expressions[k]).Emit(";\n");
+				context.Emit("}");
+			}
+		}
+
+		class OutExpressionJob : Job
+		{
+			public OutExpressionJob(string name, Expression expression)
+			{
+				this.Name = name;
+				this.Expression = expression;
+			}
+
+			public readonly Expression Expression;
+			public readonly string Name;
+
+			public override void GenerateCode(ICodeGenerationContext context)
+			{
+				Expression.GenerateCode(context);
+			}
+
+			public override void Emit(ICodeGenerationContext context)
+			{
+				context.Emit(Name + " = ").Emit(Expression).Emit(";\n");
+			}
+		}
+
+		class ReturnJob : Job
+		{
+			public readonly Expression Expression;
+
+			public ReturnJob(Expression expression)
+			{
+				this.Expression = expression;
+			}
+
+			public override void GenerateCode(ICodeGenerationContext context)
+			{
+				Expression.GenerateCode(context);
+			}
+
+			public override void Emit(ICodeGenerationContext context)
+			{
+				context.Emit("return ").Emit(Expression).Emit(";\n");
+			}
+		}
+
+		public static ExpressionCompilerArgument OutputArgument(Expression expression)
+		{
+			return new ExpressionCompilerExpressionArgumentInfo(expression, false);
+		}
+
+		public static ExpressionCompilerArgument OutputArgument(Expression[] expressions)
+		{
+			return new ExpressionCompilerExpressionArrayArgumentInfo(expressions, true);
+		}
 
 		public Delegate[] CompileAll()
 		{
@@ -211,10 +344,41 @@ namespace Reynolds.Expressions
 					var mi = jobs[k].DelegateType.GetMethod("Invoke");
 					var args = mi.GetParameters();
 
-					ExpressionSubstitution[] subs = new ExpressionSubstitution[jobs[k].Arguments.Length];
+					List<Job> ejs = new List<Job>();
+
+					ExpressionSubstitution[] subs;
+					{
+						//ExpressionSubstitution[] tmpSubs = new ExpressionSubstitution[jobs[k].Arguments.Length];
+						List<ExpressionSubstitution> tmpSubs = new List<ExpressionSubstitution>();
+						for(int j = 0; j < jobs[k].Arguments.Length; j++)
+						{
+							//subs[j] = jobs[k].Arguments[j] | new Symbol("x" + j.ToString());
+							ExpressionCompilerSymbolArgumentInfo symbol =jobs[k].Arguments[j] as ExpressionCompilerSymbolArgumentInfo;
+							if(symbol != null)
+								tmpSubs.Add(symbol.Symbol | new Symbol("x" + j.ToString()));
+						}
+						subs = tmpSubs.ToArray();
+					}
+
+
 					for(int j = 0; j < jobs[k].Arguments.Length; j++)
-						subs[j] = jobs[k].Arguments[j] | new Symbol("x" + j.ToString());
-					var e = jobs[k].Expression.Substitute(subs);
+					{
+						ExpressionCompilerExpressionArgumentInfo exarg = jobs[k].Arguments[j] as ExpressionCompilerExpressionArgumentInfo;
+						if(exarg != null)
+						{
+							ejs.Add(new OutExpressionJob("x" + j.ToString(), exarg.Expression.Substitute(subs)));
+							continue;
+						}
+
+						ExpressionCompilerExpressionArrayArgumentInfo exaarg = jobs[k].Arguments[j] as ExpressionCompilerExpressionArrayArgumentInfo;
+						if(exaarg != null)
+						{
+							ejs.Add(new ExpressionArrayJob("x" + j.ToString(), (from ee in exaarg.Expressions select ee.Substitute(subs)).ToArray(), exaarg));
+						}
+					}
+					ejs.Add(new ReturnJob(jobs[k].ReturnExpression.Substitute(subs)));
+
+					var e = jobs[k].ReturnExpression.Substitute(subs);
 
 					context.Emit("public static ").Emit(mi.ReturnType).Emit(" f").Emit(k).Emit("(");
 
@@ -222,11 +386,19 @@ namespace Reynolds.Expressions
 					{
 						if(j > 0)
 							context.Emit(", ");
+						if(args[j].IsOut)
+							context.Emit(args[j].IsIn ? "ref " : "out ");
+						//string typeName = args[j].ParameterType;
+						//if(typeName.EndsWith("&"))
+						//   typeName = typeName.Substring(0, typeName.Length - 1);
 						context.Emit(args[j].ParameterType).Emit(" x").Emit(j);
 					}
 					context.Emit(")\n{\n ");
 
 					ExpressionInstanceCounter counters = new ExpressionInstanceCounter();
+
+					foreach(var ej in ejs)
+						ej.GenerateCode(counters);
 
 					e.GenerateCode(counters);
 					foreach(var ec in counters.GetInfos())
@@ -236,7 +408,11 @@ namespace Reynolds.Expressions
 						context.CachedExpressions.Add(ec.Expression, label);
 					}
 
-					context.Emit("return ").Emit(e).Emit(";\n }\n");
+					foreach(var ej in ejs)
+						ej.Emit(context);
+
+					//context.Emit("return ").Emit(e).Emit(";\n }\n");
+					context.Emit("}\n");
 				}
 
 				foreach(var kv in context.ObjectValues)
@@ -277,12 +453,17 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public void Add<TDelegate>(Expression e, Action<TDelegate> callback, params Symbol[] arguments) where TDelegate : class
+		//public void Add<TDelegate>(Expression returnExpression, Action<TDelegate> callback, params Symbol[] arguments) where TDelegate : class
+		//{
+		//   Add(e, typeof(TDelegate), result => callback(result as TDelegate), arguments);
+		//}
+
+		public void Add<TDelegate>(Expression returnExpression, Action<TDelegate> callback, params ExpressionCompilerArgument[] arguments) where TDelegate : class
 		{
-			Add(e, typeof(TDelegate), result => callback(result as TDelegate), arguments);
+			Add(returnExpression, typeof(TDelegate), result => callback(result as TDelegate), arguments);
 		}
 
-		public void Add(Expression e, Type delegateType, Action<Delegate> callback, params Symbol[] arguments)
+		public void Add(Expression returnExpression, Type delegateType, Action<Delegate> callback, params ExpressionCompilerArgument[] arguments)
 		{
 			if(!delegateType.IsSubclassOf(typeof(Delegate)))
 				throw new InvalidOperationException(delegateType.Name + " is not a delegate type");
@@ -292,7 +473,7 @@ namespace Reynolds.Expressions
 
 			jobs.Add(new CompilationInfo()
 			{
-				Expression = e,
+				ReturnExpression = returnExpression,
 				DelegateType = delegateType,
 				Arguments = arguments,
 				Callback = callback

@@ -6,6 +6,160 @@ using Reynolds.Mappings;
 
 namespace Reynolds.Expressions.Expressions
 {
+	public class CollectionSumExpression : Expression
+	{
+		public readonly Expression Collection;
+		public readonly Symbol Index;
+		public readonly Expression Term;
+
+		protected static readonly Symbol placeholder = new Symbol("#");
+
+		static DictionaryMapping<Expression, Expression, CollectionSumExpression> sumExpressions = new DictionaryMapping<Expression, Expression, CollectionSumExpression>();
+
+		static internal Expression Get(Expression collection, Func<Symbol, Expression> term)
+		{
+			Expression weakExpr = term(placeholder);
+			CollectionSumExpression ret;
+			if(!sumExpressions.TryGetValue(collection, weakExpr, out ret))
+			{
+				var index = new Symbol("n");
+				sumExpressions[collection, weakExpr] = ret = new CollectionSumExpression(collection, index, term(index));
+			}
+			return ret;
+		}
+
+		protected CollectionSumExpression(Expression collection, Symbol index, Expression term)
+		{
+			this.Collection = collection;
+			this.Index = index;
+			this.Term = term;
+		}
+
+		protected override Expression Substitute(VisitCache cache)
+		{
+			Expression newCollection = cache[Collection];
+			Expression newTerm = cache[Term];
+			if(newCollection != Collection || newTerm != Term)
+				return Get(newCollection, n => newTerm.Substitute(Index | n));
+			else
+				return this;
+		}
+
+		internal override Expression Derive(IDerivativeCache cache, Expression variable)
+		{
+			Expression dterm = cache[Term, variable];
+			if(dterm.IsZero)
+				return 0;
+			else
+				return Get(Collection, n => dterm.Substitute(Index | n));
+		}
+
+		public override void ToString(IStringifyContext context)
+		{
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit("(");
+			context.Emit("sum ");
+			context.Emit(Index);
+			context.Emit(" in ");
+			context.Emit(Collection);
+			context.Emit(" : ");
+			context.Emit(Term);
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit(")");
+		}
+
+		public override void GenerateCode(ICodeGenerationContext context)
+		{
+			context.Emit(Collection);
+			context.Emit(".Sum(");
+			context.Emit(Index);
+			context.Emit(" => ");
+			context.Emit(Term);
+			context.Emit(")");
+		}
+	}
+
+	public class DynamicSumExpression : Expression
+	{
+		public readonly Expression From;
+		public readonly Expression To;
+		public readonly Symbol Index;
+		public readonly Expression Term;
+
+		protected static readonly Symbol placeholder = new Symbol("#");
+
+		static DictionaryMapping<Expression, Expression, Expression, DynamicSumExpression> sumExpressions = new DictionaryMapping<Expression, Expression, Expression, DynamicSumExpression>();
+
+		static internal Expression Get(Expression from, Expression to, Func<Symbol, Expression> term)
+		{
+			Expression weakExpr = term(placeholder);
+			DynamicSumExpression ret;
+			if(!sumExpressions.TryGetValue(from, to, weakExpr, out ret))
+			{
+				var index = new Symbol("n");
+				sumExpressions[from, to, weakExpr] = ret = new DynamicSumExpression(from, to, index, term(index));
+			}
+			return ret;
+		}
+
+		protected DynamicSumExpression(Expression from, Expression to, Symbol index, Expression term)
+		{
+			this.From = from;
+			this.To = to;
+			this.Index = index;
+			this.Term = term;
+		}
+
+		protected override Expression Substitute(VisitCache cache)
+		{
+			Expression newFrom = cache[From];
+			Expression newTo = cache[To];
+			Expression newTerm = cache[Term];
+			if(newFrom != From || newTo != To || newTerm != Term)
+				return Get(newFrom, newTo, n => newTerm.Substitute(Index | n));
+			else
+				return this;
+		}
+
+		internal override Expression Derive(IDerivativeCache cache, Expression variable)
+		{
+			Expression dterm = cache[Term, variable];
+			if(dterm.IsZero)
+				return 0;
+			else
+				return Get(From, To, n => dterm.Substitute(Index | n));
+		}
+
+		public override void ToString(IStringifyContext context)
+		{
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit("(");
+			context.Emit("sum ");
+			context.Emit(Index);
+			context.Emit(" in ");
+			context.Emit(From);
+			context.Emit(" to ");
+			context.Emit(To);
+			context.Emit(" : ");
+			context.Emit(Term);
+			if(context.EnclosingOperator > StringifyOperator.Sum)
+				context.Emit(")");
+		}
+
+		public override void GenerateCode(ICodeGenerationContext context)
+		{
+			context.Emit("Enumerable.Range(");
+			context.Emit(From);
+			context.Emit(", ");
+			context.Emit(To);
+			context.Emit(").Sum(");
+			context.Emit(Index);
+			context.Emit(" => ");
+			context.Emit(Term);
+			context.Emit(")");
+		}
+	}
+
 	public class SumExpression : Expression
 	{
 		public readonly Expression[] Terms;
@@ -25,7 +179,7 @@ namespace Reynolds.Expressions.Expressions
 				{
 					ProductExpression pe = e as ProductExpression;
 					dynamic coeff = 1;
-					if(null != pe && pe.Factors[0].IsConstant && pe.Factors[0].IsScalar)
+					if(null != pe && pe.Factors[0].IsConstant) // && pe.Factors[0].IsScalar)
 					{
 						coeff = pe.Factors[0].Value;
 						e = ProductExpression.Get(pe.Factors.Skip(1).ToArray());
@@ -73,19 +227,19 @@ namespace Reynolds.Expressions.Expressions
 			return sumExpressions[terms];
 		}
 
-		bool isScalar;
-		public override bool IsScalar
-		{
-			get
-			{
-				return isScalar;
-			}
-		}
+		//bool isScalar;
+		//public override bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return isScalar;
+		//   }
+		//}
 
 		protected SumExpression(Expression[] terms)
 		{
 			this.Terms = terms;
-			isScalar = terms.All(e => e.IsScalar);
+			//isScalar = terms.All(e => e.IsScalar);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -102,12 +256,12 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression variable)
 		{
 			List<Expression> terms = new List<Expression>();
 			foreach(var t in Terms)
 			{
-				var dt = cache[t];
+				var dt = cache[t, variable];
 				if(!dt.IsZero)
 					terms.Add(dt);
 			}

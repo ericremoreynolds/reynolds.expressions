@@ -7,19 +7,19 @@ namespace Reynolds.Expressions
 {
 	public class Symbol : Expression
 	{
-		bool isScalar;
-		public override bool IsScalar
+		bool isMatrix;
+		public override bool IsMatrix
 		{
 			get
 			{
-				return isScalar;
+				return isMatrix;
 			}
 		}
 
-		public Symbol(string name, bool scalar = true)
+		public Symbol(string name, bool matrix = false)
 		{
 			Name = name;
-			isScalar = scalar;
+			isMatrix = matrix;
 		}
 
 		public string Name
@@ -33,9 +33,17 @@ namespace Reynolds.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
-			return (s == this) ? 1 : 0;
+			if(isMatrix)
+			{
+				if(s == this)
+					throw new NotImplementedException();  // MatrixExpression.Get(this.Rows, this.Columns, (i, j) => Expression.Indicator[i, j]) : Matrix.Get(
+				else
+					return MatrixExpression.Get(this.Rows, this.Columns, (i, j) => 0);
+			}
+			else
+				return (s == this) ? 1 : 0;
 		}
 
 		public static ExpressionSubstitution operator |(Symbol symbol, Expression expression)
@@ -53,9 +61,9 @@ namespace Reynolds.Expressions
 			context.Emit(this.Name);
 		}
 
-		public override bool GetIsScalar(Expression[] arguments)
-		{
-			return isScalar;
-		}
+		//public override bool GetIsScalar(Expression[] arguments)
+		//{
+		//   return isScalar;
+		//}
 	}
 }

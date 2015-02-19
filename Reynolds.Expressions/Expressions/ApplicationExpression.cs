@@ -11,14 +11,14 @@ namespace Reynolds.Expressions.Expressions
 		public Expression Applicand;
 		public readonly Expression[] Arguments;
 
-		bool isScalar;
-		public override bool IsScalar
-		{
-			get
-			{
-				return isScalar;
-			}
-		}
+		//bool isScalar;
+		//public override bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return isScalar;
+		//   }
+		//}
 
 		static WeakLazyMapping<Expression, Expression[], ApplicationExpression> instances = new WeakLazyMapping<Expression, Expression[], ApplicationExpression>(
 			(obj, indices) => new ApplicationExpression(obj, indices),
@@ -31,7 +31,7 @@ namespace Reynolds.Expressions.Expressions
 		{
 			this.Applicand = f;
 			this.Arguments = x;
-			isScalar = f.GetIsScalar(x);
+			//isScalar = f.GetIsScalar(x);
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -50,12 +50,12 @@ namespace Reynolds.Expressions.Expressions
 				return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression variable)
 		{
 			List<Expression> terms = new List<Expression>();
 			for(int k = 0; k < Arguments.Length; k++)
 			{
-				var dx = cache[Arguments[k]];
+				var dx = cache[Arguments[k], variable];
 				if(!dx.IsZero)
 					terms.Add(dx * Applicand.GetPartialDerivative(k, Arguments));
 			}

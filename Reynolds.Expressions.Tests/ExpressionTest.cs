@@ -63,7 +63,7 @@ namespace Reynolds.Expressions.Tests
 
 			int[] a = new int[] { 123, 111 };
 
-			var e = 2 * x[y+1];
+			var e = 2 * x[y + 1];
 
 			Assert.IsTrue(e[x | Expression.Constant(a), y | 0].Value == 222);
 
@@ -110,7 +110,7 @@ namespace Reynolds.Expressions.Tests
 		{
 			var x = new Symbol("x");
 			var y = new Symbol("y");
-			var e = -x + (3*x) + y;
+			var e = -x + (3 * x) + y;
 
 			Assert.IsTrue(e == 2 * x + y);
 			Assert.IsTrue(e[x | 1, y | 2].Value == 4);
@@ -178,7 +178,7 @@ namespace Reynolds.Expressions.Tests
 		public void ExpTest()
 		{
 			var x = new Symbol("x");
-			var e = Expression.Exp[2*x];
+			var e = Expression.Exp[2 * x];
 			Assert.IsTrue(e[x | 0.5].Value == Math.E);
 			Assert.IsTrue(e.Derive(x) == 2 * e);
 
@@ -216,7 +216,7 @@ namespace Reynolds.Expressions.Tests
 			var x = new Symbol("x");
 			var y = new Symbol("y");
 
-			var e = Expression.Exp[2*x[y]];
+			var e = Expression.Exp[2 * x[y]];
 
 			var c = new FieldTestClass();
 
@@ -245,6 +245,44 @@ namespace Reynolds.Expressions.Tests
 			var cf = e.Compile<Func<double, double, double>>(x, y);
 
 			Assert.That(e[x | 2.0, y | 3.0].Value == cf(2.0, 3.0));
+		}
+
+		delegate double CompileMultiTestDelegate(double x, double y, out double z, double[] w);
+		[Test]
+		public void CompileMultiTest()
+		{
+			var x = new Symbol("x");
+			var y = new Symbol("y");
+
+			var e = Expression.Cos[2.0 * x] + (y + 1) * (3 + Expression.Cos[2.0 * x]);
+			var e2 = y + 1;
+			var ea = new Expression[] { 3.0 * x, Expression.Cos[2.0 * x] };
+
+			ExpressionCompiler compiler = new ExpressionCompiler();
+			CompileMultiTestDelegate cf = null;
+			compiler.Add<CompileMultiTestDelegate>(e, result => cf = result, x, y, ExpressionCompiler.OutputArgument(e2), ExpressionCompiler.OutputArgument(ea));
+			compiler.CompileAll();
+
+			double z;
+			double[] w = new double[2];
+			Assert.That(e[x | 2.0, y | 3.0].Value == cf(2.0, 3.0, out z, w));
+			Assert.That(z == e2[y | 3.0].Value);
+			Assert.That(w[0] == ea[0][x | 2.0].Value);
+			Assert.That(w[1] == ea[1][x | 2.0].Value);
+		}
+
+		[Test]
+		public void LeastSquaresTest()
+		{
+			var a = new Symbol("a");
+			var x = new Symbol("x", true);
+			var y = new Symbol("y", true);
+
+			var X = MatrixExpression.Get(x.Rows, 1, (i, j) => a * x[i]);
+
+			var b = (X.Transpose() % X).Inverse() % X.Transpose() % y;
+
+			var e = b.Derive(a);
 		}
 	}
 }

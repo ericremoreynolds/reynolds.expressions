@@ -8,44 +8,64 @@ namespace Reynolds.Expressions.Expressions
 {
 	public class ProductExpression : Expression
 	{
+		public override bool IsMatrix
+		{
+			get
+			{
+				return cols != null;
+			}
+		}
+
+		Expression cols;
+		public override Expression Columns
+		{
+			get
+			{
+				return cols;
+			}
+		}
+
+		Expression rows;
+		public override Expression Rows
+		{
+			get
+			{
+				return rows;
+			}
+		}
+
 		public readonly Expression[] Factors;
 
 		static WeakLazyMapping<Expression[], ProductExpression> productExpressions = new WeakLazyMapping<Expression[], ProductExpression>(es => new ProductExpression(es), null, ReferenceTypeArrayEqualityComparer<Expression>.Instance);
 		static internal Expression Get(params Expression[] factors)
 		{
 			Dictionary<Expression, Expression> newFactors = new Dictionary<Expression, Expression>();
-			List<Expression> nonCommutativeFactors = new List<Expression>();
 			dynamic coefficient = 1;
 
 			Action<Expression> addFactor = delegate(Expression e)
 			{
-				if(e.IsScalar)
+				if(e.IsConstant) // && e.IsScalar)
+					coefficient *= e.Value;
+				else
 				{
-					if(e.IsConstant && e.IsScalar)
-						coefficient *= e.Value;
+					ApplicationExpression ae = e as ApplicationExpression;
+					if(null != ae && ae.Applicand == Expression.Pow)
+					{
+						Expression p;
+						if(!newFactors.TryGetValue(ae.Arguments[0], out p))
+							p = 0;
+						p += ae.Arguments[1];
+						newFactors[ae.Arguments[0]] = p;
+					}
 					else
 					{
-						ApplicationExpression ae = e as ApplicationExpression;
-						if(null != ae && ae.Applicand == Expression.Pow)
-						{
-							Expression p;
-							if(!newFactors.TryGetValue(ae.Arguments[0], out p))
-								p = 0;
-							p += ae.Arguments[1];
-							newFactors[ae.Arguments[0]] = p;
-						}
-						else
-						{
-							Expression p;
-							if(!newFactors.TryGetValue(e, out p))
-								p = 0;
-							p += 1;
-							newFactors[e] = p;
-						}
+						Expression p;
+						if(!newFactors.TryGetValue(e, out p))
+							p = 0;
+						p += 1;
+						newFactors[e] = p;
 					}
 				}
-				else
-					nonCommutativeFactors.Add(e);
 			};
 
 			foreach(var t in factors)
@@ -65,17 +85,28 @@ namespace Reynolds.Expressions.Expressions
 			foreach(var kv in newFactors)
 			{
 				var p = kv.Value;
-				if(p.IsConstant)
+				if(kv.Key.IsMatrix)
 				{
-					if(kv.Key.IsConstant)
-						coefficient *= Math.Pow(kv.Key.Value, p.Value);
-					else if(p.Value == 1)
-						fs.Add(kv.Key);
-					else if(p.Value != 0)
-						fs.Add(Expression.Pow[kv.Key, p]);
+					if(!p.IsConstant || p.Value != 1)
+						throw new NotImplementedException();
+
+					if(kv.Key.IsZero)
+						return MatrixExpression.Get(kv.Key.Rows, kv.Key.Columns, (i, j) => 0);
 				}
 				else
-					fs.Add(Expression.Pow[kv.Key, p]);
+				{
+					if(p.IsConstant)
+					{
+						if(kv.Key.IsConstant)
+							coefficient *= Math.Pow(kv.Key.Value, p.Value);
+						else if(p.Value == 1)
+							fs.Add(kv.Key);
+						else if(p.Value != 0)
+							fs.Add(Expression.Pow[kv.Key, p]);
+					}
+					else
+						fs.Add(Expression.Pow[kv.Key, p]);
+				}
 			}
 
 			fs.Sort();
@@ -83,8 +114,6 @@ namespace Reynolds.Expressions.Expressions
 			if(coefficient != 1)
 				fs.Insert(0, coefficient);
 
-			fs.AddRange(nonCommutativeFactors);
-			
 			factors = fs.ToArray();
 
 			if(factors.Length == 0)
@@ -96,19 +125,30 @@ namespace Reynolds.Expressions.Expressions
 			return productExpressions[factors];
 		}
 
-		bool isScalar;
-		public override bool IsScalar
-		{
-			get
-			{
-				return isScalar;
-			}
-		}
+		//bool isScalar;
+		//public override bool IsScalar
+		//{
+		//   get
+		//   {
+		//      return isScalar;
+		//   }
+		//}
 
 		protected ProductExpression(Expression[] factors)
 		{
 			this.Factors = factors;
-			isScalar = factors.All(e => e.IsScalar);
+
+			for(int k = 0; k < factors.Length; k++)
+			{
+				if(factors[k].IsMatrix)
+				{
+					if(cols != null)
+						throw new Exception("Cannot have more than one matrix in a product expression");
+
+					cols = factors[k].Columns;
+					rows = factors[k].Rows;
+				}
+			}
 		}
 
 		protected override Expression Substitute(VisitCache cache)
@@ -125,12 +165,12 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression variable)
 		{
 			List<Expression> terms = new List<Expression>();
 			foreach(var f in Factors)
 			{
-				var df = cache[f];
+				var df = cache[f, variable];
 				if(!df.IsZero)
 					terms.Add(df * this / f);
 			}

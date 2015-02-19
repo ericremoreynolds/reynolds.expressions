@@ -28,7 +28,7 @@ namespace Reynolds.Expressions.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			return 0;
 		}

@@ -22,7 +22,7 @@ namespace Reynolds.Expressions
 			}
 		}
 
-		public abstract double Evaluate(params double[] x);
+		public abstract object Evaluate(params object[] x);
 
 		public override Expression this[params Expression[] arguments]
 		{
@@ -40,7 +40,7 @@ namespace Reynolds.Expressions
 			return this;
 		}
 
-		protected override Expression Derive(VisitCache cache, Expression s)
+		internal override Expression Derive(IDerivativeCache cache, Expression s)
 		{
 			throw new NotImplementedException();
 		}
@@ -72,14 +72,15 @@ namespace Reynolds.Expressions
 		public override Expression Normalize(Expression[] arguments)
 		{
 			if(arguments.All(a => a.IsConstant))
-				return Evaluate((from x in arguments select Convert.ToDouble((object) x.Value)).ToArray());
+				//return Evaluate((from x in arguments select Convert.ToDouble((object) x.Value)).ToArray());
+				return Expression.Constant(Evaluate((from x in arguments select (object) x.Value).ToArray()));
 			else
 				return base.Normalize(arguments);
 		}
 
-		public override bool GetIsScalar(Expression[] arguments)
-		{
-			return arguments.All(e => e.IsScalar);
-		}
+		//public override bool GetIsScalar(Expression[] arguments)
+		//{
+		//   return arguments.All(e => e.IsScalar);
+		//}
 	}
 }
